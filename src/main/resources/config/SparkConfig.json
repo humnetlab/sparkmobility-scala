@@ -1,0 +1,12 @@
+{
+    "spark.master": "local",
+    "spark.eventLog.enabled": "true",
+    "spark.network.timeout": "12000",
+    "spark.executor.extraJavaOptions": "-Djava.io.tmpdir=/Users/chrisc/Documents/humnetscala/tmp/",
+    "spark.shuffle.compress": "true",
+    "spark.driver.memory": "4g",
+    "spark.executor.cores": "4",
+    "spark.local.dir": "/Users/chrisc/Documents/humnetscala/tmp/",
+    "spark.sql.files.ignoreCorruptFiles": "true",
+    "spark.ui.port": "5045"
+  }
