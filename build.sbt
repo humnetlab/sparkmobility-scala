@@ -1,14 +1,20 @@
-name := "HumNetMobility"
+ThisBuild / version := "0.1.0-SNAPSHOT"
 
-version := "1.0"
+ThisBuild / scalaVersion := "2.13.12"
 
-scalaVersion := "2.12.18"
-
-libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "3.4.0",
-  "org.apache.spark" %% "spark-sql" % "3.4.0",
-  "org.json4s" %% "json4s-native" % "3.7.0-M3"
-
+ThisBuild / resolvers ++= Seq(
+  "Maven Central" at "https://repo1.maven.org/maven2/",
+  "JCenter" at "https://jcenter.bintray.com/"
 )
 
-resolvers += Resolver.mavenCentral
+lazy val root = (project in file("."))
+  .settings(
+    name := "timegeo_1",
+    libraryDependencies ++= Seq(
+      "org.apache.spark" %% "spark-core" % "3.5.0",
+      "org.apache.spark" %% "spark-sql" % "3.5.0",
+      "com.uber" % "h3" % "4.1.1", // 4.1.1, 3.6.3, 3.7.1, 3.7.3
+      "org.plotly-scala" %% "plotly-render" % "0.8.2"
+      //"org.apache.hadoop" % "hadoop-client-api" % "3.3.4"
+    )
+  )
