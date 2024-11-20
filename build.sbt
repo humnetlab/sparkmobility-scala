@@ -11,4 +11,13 @@ libraryDependencies ++= Seq(
 
 )
 
+resolvers += "Apache Releases" at "https://repository.apache.org/content/repositories/releases/"
+
+
+libraryDependencies += "org.datasyslab" % "geotools-wrapper" % "1.6.0-28.2"
+
+libraryDependencies += "com.uber" % "h3" % "4.1.1"
+
+
+
 resolvers += Resolver.mavenCentral
