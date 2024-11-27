@@ -4,11 +4,19 @@ import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import utils.H3DistanceUtils
+import org.apache.spark.sql.functions.udf
+import com.uber.h3core.H3Core
+import org.apache.spark.sql.functions.col
+
+import java.io.Serializable
 
 object extractTrips {
-  def trip(spark: SparkSession, data: DataFrame): DataFrame ={
+  object H3CoreSingleton extends Serializable {
+    @transient lazy val instance: H3Core = H3Core.newInstance()
+  }
+  def trip(spark: SparkSession, data: DataFrame, resolution : Int = 3): DataFrame ={
     /**
-     * data schema:
+     * input data schema:
      * caid / h3_region_id / local_time / stay_end_timestamp / stay_duration / row_count_for_region / h3_index
      * return individual user level of trip data, with schema:
      * caid / origin / destination / distance
@@ -38,13 +46,42 @@ object extractTrips {
       col("distance")
     ).filter(col("distance") =!= 0.0)
 
+    //Get the OD matrix
+    val h3 = H3Core.newInstance()
+    val h3ToParentUDF = udf((h3Index: String) => {
+      val h3 = H3CoreSingleton.instance
+
+      h3.cellToParentAddress(h3Index, resolution)
+    })
+    val resultWithParent = result
+      .withColumn("parent_origin", h3ToParentUDF(col("origin")))
+      .withColumn("parent_destination", h3ToParentUDF(col("destination")))
+
+    val odCount = resultWithParent
+      .groupBy("parent_origin", "parent_destination")
+      .count()
+
+
     val curDir = System.getProperty("user.dir")
-    val relPath = "/data/intermediateResults/trips" //Whole folder
-    val outputPath = curDir + relPath
+    val relPath = "/data/intermediateResults"
+
+    val tripName = "/trips"
+    val ODName = "/OD-Matrix"
+
     result.write
       .mode("overwrite")
       .format("parquet")
-      .save(outputPath)
-    result
+      .save(curDir + relPath + tripName)
+
+    odCount.write
+      .mode("overwrite")
+      .format("parquet")
+      .save(curDir + relPath + ODName)
+
+    odCount
+
   }
+
+
+
 }
