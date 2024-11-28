@@ -4,6 +4,9 @@ import org.apache.spark.sql.types.{StringType, LongType}
 import org.apache.spark.sql.functions._
 import com.uber.h3core.H3Core
 import com.uber.h3core.util.LatLng
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.catalyst.encoders.RowEncoder
+
 
 import scala.util.Try
 import scala.collection.immutable.Seq
@@ -12,7 +15,7 @@ import scala.jdk.CollectionConverters._
 
 object stay_detection {
   
-  val h3 = H3Core.newInstance()
+  //val h3 = H3Core.newInstance()
 
   object Haversine {
     val R = 6371.0 // R, km
@@ -26,14 +29,37 @@ object stay_detection {
     }
   }
 
-  val latLonToH3UDF = udf((lat: Double, lon: Double, resolution: Int) => {
+  //object H3Singleton {
+  //  private val h3CoreThreadLocal = new ThreadLocal[H3Core]() {
+  //    override def initialValue(): H3Core = {
+  //      H3Core.newInstance()
+  //    }
+  //  }
+//
+  //  def getInstance(): H3Core = {
+  //    h3CoreThreadLocal.get()
+  //  }
+  //}
+
+  //val latLonToH3UDF = udf((lat: Double, lon: Double, resolution: Int) => {
+  //  //val h3_local = H3Core.newInstance()
+  //  //h3_local.latLngToCell(lat, lon, resolution)
+  //  val h3 = H3Singleton.getInstance()
+  //  h3.latLngToCell(lat, lon, resolution)
+  //})
+
+  val latLonToH3UDF = (h3Broadcast: org.apache.spark.broadcast.Broadcast[H3Core]) => udf((lat: Double, lon: Double, resolution: Int) => {
+    val h3 = h3Broadcast.value
     h3.latLngToCell(lat, lon, resolution)
   })
 
 
-
-
-  def getStays(df: DataFrame, spark: SparkSession, temporal_threshold: Long = 300, spatial_threshold: Double = 300): (DataFrame) = {
+  def getStays(
+                df: DataFrame,
+                spark: SparkSession,
+                temporal_threshold: Long = 300,
+                spatial_threshold: Double = 300
+              ): (DataFrame) = {
 
     // Temporal filtering: If delta_t(duration) > temporal_threshold (default = 300sec), "temporal_stay" = 1
     // Define window specification to partition by 'caid' and order by 'utc_timestamp'
@@ -52,13 +78,23 @@ object stay_detection {
     val sortedDF = dfWithStayId
       .orderBy("caid", "temporal_stay_id", "utc_timestamp")
     val stayWindowSpec = Window.partitionBy("caid", "temporal_stay_id").orderBy("utc_timestamp")
-    val haversineUDF = udf((lat1: Double, lon1: Double, lat2: Double, lon2: Double) => {
-      Haversine.distance(lat1, lon1, lat2, lon2) * 1000 // km ---> meter
-    })
+    //val haversineUDF = udf((lat1: Double, lon1: Double, lat2: Double, lon2: Double) => {
+    //  Haversine.distance(lat1, lon1, lat2, lon2) * 1000 // km ---> meter
+    //})
     val dfWithDistance = sortedDF
       .withColumn("prev_latitude", lag("latitude", 1).over(stayWindowSpec))
       .withColumn("prev_longitude", lag("longitude", 1).over(stayWindowSpec))
-      .withColumn("distance", haversineUDF(col("prev_latitude"), col("prev_longitude"), col("latitude"), col("longitude")))
+      //.withColumn("distance", haversineUDF(col("prev_latitude"), col("prev_longitude"), col("latitude"), col("longitude")))
+      .withColumn("distance", expr("""
+        6371000 * 2 * ASIN(
+            SQRT(
+                POWER(SIN(RADIANS((latitude - prev_latitude) / 2)), 2) +
+                COS(RADIANS(prev_latitude)) * COS(RADIANS(latitude)) *
+                POWER(SIN(RADIANS((longitude - prev_longitude) / 2)), 2)
+                )
+              )
+        """)
+      )
       .withColumn("distance_threshold", when(col("distance") > spatial_threshold, 1).otherwise(0))
 
 
@@ -99,13 +135,17 @@ object stay_detection {
   def mapToH3(
                data_i: DataFrame,
                spark: SparkSession,
+               h3Broadcast: org.apache.spark.broadcast.Broadcast[H3Core],
                resolution: Int,
                temporal_threshold: Int = 3600, // second
                // filterPassing: Boolean = true,
                speed_threshold: Double): (DataFrame, DataFrame) = {
 
+
     val windowSpec = Window.partitionBy("caid").orderBy("stay_start_timestamp")
-    val dfWithH3 = data_i.withColumn("h3_index", latLonToH3UDF(col("latitude"), col("longitude"), lit(resolution)))
+    val latLonToH3 = latLonToH3UDF(h3Broadcast)
+    val dfWithH3 = data_i.withColumn("h3_index", latLonToH3(col("latitude"), col("longitude"), lit(resolution)))
+    //val dfWithH3 = data_i.withColumn("h3_index", latLonToH3UDF(col("latitude"), col("longitude"), lit(resolution)))
     val dfWithLag = dfWithH3
       .withColumn("prev_h3_index", lag("h3_index", 1).over(windowSpec))
       .withColumn("prev_h3_stay_end_time", lag("stay_start_timestamp", 1).over(windowSpec))
@@ -182,8 +222,12 @@ object stay_detection {
 
 
 
-  val sequentialH3RegionDetectionUDF = udf((names: Seq[String]) => {
+  //val sequentialH3RegionDetectionUDF(h3Broadcast: org.apache.spark.broadcast.Broadcast[H3Core]) = udf((names: Seq[String]) => {
+  def sequentialH3RegionDetectionUDF(h3Broadcast: org.apache.spark.broadcast.Broadcast[H3Core]) = udf((names: Seq[String]) => {
     //val h3 = H3Core.newInstance()
+    //val h3 = H3Singleton.getInstance()
+    val h3 = h3Broadcast.value
+
     val h3LookupDict = scala.collection.mutable.Map[String, String]()
     val result = scala.collection.mutable.ListBuffer[String]()
 
@@ -192,6 +236,7 @@ object stay_detection {
         val h3Index = java.lang.Long.parseLong(h3_id) // Convert string to long
         if (!h3LookupDict.contains(h3_id)) {
           // Get all neighbors (k-ring with distance 1) of the h3_id
+
           val elements = h3.gridDisk(h3Index, 1).asScala.map(_.toString) // Convert Long back to String
 
           // Assign each element in k-ring to the region represented by h3_id
@@ -214,7 +259,11 @@ object stay_detection {
 
 
   // Function to map H3 IDs to regions based on proximity and clustering
-  def getH3RegionMapping(df: DataFrame, spark: SparkSession): DataFrame = {
+  def getH3RegionMapping(
+                          df: DataFrame,
+                          spark: SparkSession,
+                          h3Broadcast: org.apache.spark.broadcast.Broadcast[H3Core]
+                        ): DataFrame = {
 
     // Compute mean latitude, mean longitude, and number of stays for each H3 cell per caid
     val aggregatedDf = df.groupBy("caid", "h3_id")
@@ -225,12 +274,15 @@ object stay_detection {
       )
       .orderBy(col("caid"), col("num_stays").desc)
 
+    val sequentialH3RegionDetection = sequentialH3RegionDetectionUDF(h3Broadcast)
+
+
     // Collect list of H3 IDs for each caid and detect regions
     val groupedDf = aggregatedDf.groupBy("caid")
       .agg(
         collect_list("h3_id").alias("list_of_h3_id") //, collect_list("initial_row_count").alias("list_of_row_counts")
       )
-      .withColumn("h3_id_region", sequentialH3RegionDetectionUDF(col("list_of_h3_id")))
+      .withColumn("h3_id_region", sequentialH3RegionDetection(col("list_of_h3_id")))
 
     // Explode the H3 region and H3 ID lists for each caid
     val explodedDfRegion = groupedDf.selectExpr("caid", "explode(h3_id_region) as h3_id_region")
@@ -279,4 +331,66 @@ object stay_detection {
 
     result
   }
+
+
+
+  def filterData(
+                  df: DataFrame,
+                  spark: SparkSession,
+                  minLocations: Option[Int] = None,
+                  maxLocations: Option[Int] = None,
+                  minStayDuration: Option[Int] = None,
+                  maxStayDuration: Option[Int] = None,
+                  minRowCount: Option[Int] = None,
+                  maxRowCount: Option[Int] = None
+                ): DataFrame = {
+    import spark.implicits._
+
+    if (minLocations.isEmpty && maxLocations.isEmpty &&
+      minStayDuration.isEmpty && maxStayDuration.isEmpty &&
+      minRowCount.isEmpty && maxRowCount.isEmpty) {
+      return df
+    }
+
+    var filteredDF = df
+
+    if (minLocations.isDefined || maxLocations.isDefined) {
+      val userLocations = df.groupBy($"caid")
+        .agg(countDistinct($"h3_id_region").as("unique_locations"))
+
+      var locationFilter = userLocations
+      if (minLocations.isDefined) {
+        locationFilter = locationFilter.filter($"unique_locations" >= minLocations.get)
+      }
+      if (maxLocations.isDefined) {
+        locationFilter = locationFilter.filter($"unique_locations" <= maxLocations.get)
+      }
+
+      val validUsers = locationFilter.select($"caid").distinct()
+      filteredDF = filteredDF.join(validUsers, Seq("caid"))
+    }
+
+
+    if (minStayDuration.isDefined || maxStayDuration.isDefined) {
+      if (minStayDuration.isDefined) {
+        filteredDF = filteredDF.filter($"stay_duration" >= minStayDuration.get)
+      }
+      if (maxStayDuration.isDefined) {
+        filteredDF = filteredDF.filter($"stay_duration" <= maxStayDuration.get)
+      }
+    }
+
+
+    if (minRowCount.isDefined || maxRowCount.isDefined) {
+      if (minRowCount.isDefined) {
+        filteredDF = filteredDF.filter($"row_count_for_region" >= minRowCount.get)
+      }
+      if (maxRowCount.isDefined) {
+        filteredDF = filteredDF.filter($"row_count_for_region" <= maxRowCount.get)
+      }
+    }
+
+    filteredDF
+  }
+
 }
