@@ -12,8 +12,8 @@ import scala.io.Source
 import scala.reflect.io.Directory
 
 object FileUtils extends Logging {
-
-  implicit val formats = DefaultFormats
+  
+  implicit val formats: DefaultFormats.type = DefaultFormats
 
   def readJsonAsMap(path: String): Map[String, String] = {
     val fileContent = readResourceFile(path)
