@@ -2,9 +2,6 @@ import org.apache.spark
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
-import dataPreprocessing.dataLoadFilter
-import dataPreprocessing.h3Indexer
-import dataPreprocessing.locationType
 import com.uber.h3core.H3Core
 import measures.{dailyVisitedLocation, extractTrips, locationDistribution, stayDurationDistribution}
 
@@ -16,6 +13,7 @@ object Main {
       .config("spark.driver.memory", "8g")  // Increase based on system capacity
       .config("spark.executor.memory", "8g")
       .getOrCreate()
+    import spark.implicits._
 
     val toHexString = udf((index: Long) => java.lang.Long.toHexString(index))
     val currentDir = System.getProperty("user.dir")

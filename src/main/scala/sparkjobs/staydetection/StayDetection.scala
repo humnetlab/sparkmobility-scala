@@ -1,7 +1,15 @@
-package dataPreprocessing
+package sparkjobs.staydetection
 
+import com.uber.h3core.H3Core
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.expressions.Window
+import org.apache.spark.sql.expressions.WindowSpec
+import org.apache.spark.sql.functions._
+import scala.util.Try
+import scala.jdk.CollectionConverters._
+import org.apache.spark.sql.Row
 
-object compression_stay_detection {
+object StayDetection {
   
   val h3 = H3Core.newInstance()
 
@@ -77,19 +85,23 @@ def getStays(df: DataFrame, spark: SparkSession, delta_t: Long = 300, threshold:
 
   // Perform a flatMap transformation to apply the sequential stay detection
   val resultRDD = dfWithStayId.groupBy("caid", "temporal_stay_id")
-  .agg(collect_list(struct("latitude", "longitude")).alias("group_data"))
-  .rdd.flatMap { row =>
-    val groupData = row.getAs[scala.collection.Seq[Row]]("group_data").toSeq.map { r =>
-      Map(
-        "latitude" -> r.getAs[Double]("latitude"),
-        "longitude" -> r.getAs[Double]("longitude")
-      )
+    .agg(collect_list(struct("latitude", "longitude")).alias("group_data"))
+    .rdd.flatMap { row =>
+      val caid = row.getString(0)
+      val temporalStayId = row.getInt(1)
+      val groupData = row.getAs[scala.collection.Seq[Row]]("group_data").toSeq.map { r =>
+        Map(
+          "latitude" -> r.getAs[Double]("latitude"),
+          "longitude" -> r.getAs[Double]("longitude")
+        )
+      }
+      sequentialStayDetection(groupData.iterator, threshold).map((caid, temporalStayId, _))
     }
-    sequentialStayDetection(groupData.iterator, threshold)
-  }
+  import spark.implicits._
+
   // Convert result RDD to a DataFrame and assign unique join keys
-  val listDF = resultRDD.toDF("distance_threshold")
-  .withColumn("join_key", monotonically_increasing_id())
+  val listDF = resultRDD.toDF("caid", "temporalStayId", "distance_threshold")
+    .withColumn("join_key", monotonically_increasing_id())
 
   // Add join key to the original DataFrame
   val dfWithJoinKey = dfWithStayId.withColumn("join_key", monotonically_increasing_id())

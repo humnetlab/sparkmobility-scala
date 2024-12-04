@@ -1,6 +1,8 @@
 // src/main/scala/filter/dataProcessor.scala
-package dataPreprocessing
-
+package sparkjobs.filtering
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.functions.{col, udf}
+import com.uber.h3core.H3Core
 
 object h3Indexer {
   def addIndex(spark: SparkSession, data: DataFrame, resolution: Int = 10): DataFrame = {

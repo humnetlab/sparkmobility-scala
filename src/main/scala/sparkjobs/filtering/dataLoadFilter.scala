@@ -1,5 +1,9 @@
 // src/main/scala/filter/dataProcessor.scala
-package dataPreprocessing
+package sparkjobs.filtering
+
+import org.apache.spark.sql.{SparkSession, DataFrame}
+import org.apache.spark.sql.functions._
+import sparkjobs.filtering.FilterParameters._
 
 object dataLoadFilter {
   def loadFilteredData(spark: SparkSession): DataFrame = {
@@ -15,7 +19,7 @@ object dataLoadFilter {
     //val endTimeUnix = unix_timestamp(lit(end_time), "yyyy-MM-dd HH:mm:ss")
 
     val df = spark.read.parquet(folderPath)
-    val params = new filterParameters()
+    val params = FilterParameters.fromJsonFile("/src/main/resources/config/DefaultParameters.json")
 
     val (startTimeUnix, endTimeUnix) = unixTimeFrame(spark, params)
     val filteredDF = df.filter(col("utc_timestamp").between(startTimeUnix, endTimeUnix))
@@ -37,7 +41,7 @@ object dataLoadFilter {
     dfWithWeekday
   }
 
-  def unixTimeFrame(spark: SparkSession, params: filterParameters): (Long, Long) = {
+  def unixTimeFrame(spark: SparkSession, params: FilterParameters): (Long, Long) = {
     // Construct start and end time strings
     val startTimeStr = f"${params.start_year}-${params.start_month}%02d-${params.start_day}%02d ${params.start_hour}%02d:${params.start_minute}%02d:${params.start_second}%02d"
     val endTimeStr = f"${params.end_year}-${params.end_month}%02d-${params.end_day}%02d ${params.end_hour}%02d:${params.end_minute}%02d:${params.end_second}%02d"
@@ -45,7 +49,7 @@ object dataLoadFilter {
     val df = spark.sqlContext.createDataFrame(Seq(
       (startTimeStr, endTimeStr)
     )).toDF("start_time", "end_time")
-
+    
     // Calculate Unix timestamps using Spark SQL functions
     val row = df.select(
       unix_timestamp(col("start_time"), "yyyy-MM-dd HH:mm:ss").as("startTimeUnix"),

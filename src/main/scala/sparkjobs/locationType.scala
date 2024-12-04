@@ -1,4 +1,11 @@
-package dataPreprocessing
+package sparkjobs
+import com.uber.h3core.H3Core
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.expressions.Window
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.expressions.UserDefinedFunction
+import sparkjobs.filtering.FilterParameters
 
 object locationType extends Serializable{
   object H3CoreSingleton extends Serializable {
@@ -10,7 +17,7 @@ object locationType extends Serializable{
     * Weekday night, when user is most likely to be at home, is defined as from 7pm of
     * Sunday to Thursday, to 8am of the following weekday.
     */
-    val params = new filterParameters()
+    val params = FilterParameters.fromJsonFile("/src/main/resources/config/DefaultParameters")
 
     val conditionHome = (
       (dayofweek(col("local_time")).isin(1, 2, 3, 4, 5) && hour(col("local_time")).between(params.workToHome, 23)) ||
@@ -50,7 +57,7 @@ object locationType extends Serializable{
     * 4. distance from home > 500m
     * */
     //val h3 = H3Core.newInstance()
-    val params = new filterParameters()
+    val params = FilterParameters.fromJsonFile("/src/main/resources/config/DefaultParameters.json")
 
     val conditionWork = dayofweek(col("local_time")).isin(1, 2, 3, 4, 5) && hour(col("local_time")).between(params.homeToWork, params.workToHome)
     val workDF = data.filter(conditionWork)

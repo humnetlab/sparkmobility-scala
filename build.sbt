@@ -15,7 +15,8 @@ lazy val root = (project in file("."))
       "org.apache.spark" %% "spark-sql" % "3.5.0",
       "com.uber" % "h3" % "4.1.1", // 4.1.1, 3.6.3, 3.7.1, 3.7.3
       "org.plotly-scala" %% "plotly-render" % "0.8.2",
-      "org.datasyslab" % "geotools-wrapper" % "1.6.0-28.2"
+      "org.datasyslab" % "geotools-wrapper" % "1.6.0-28.2",
+      "org.json4s" %% "json4s-native" % "3.7.0-M3"
 
       //"org.apache.hadoop" % "hadoop-client-api" % "3.3.4"
     )

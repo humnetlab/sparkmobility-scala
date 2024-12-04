@@ -1,4 +1,4 @@
-package sparkjobs
+package sparkjobs.filtering
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -6,6 +6,7 @@ import utils.RunMode
 import utils.RunMode.RunMode
 import utils.SparkFactory._
 import utils.TestUtils.runModeFromEnv
+import org.apache.spark.sql.DataFrame
 
 object SampleJob extends Logging {
 
