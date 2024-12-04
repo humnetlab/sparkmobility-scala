@@ -9,21 +9,25 @@ object Main {
   def main(args: Array[String]): Unit = {
     val spark = SparkSession.builder
       .appName("Filter")
-      .master("local[*]")
-      .config("spark.driver.memory", "8g")  // Increase based on system capacity
-      .config("spark.executor.memory", "8g")
+      .master("local[8]")
+      .config("spark.driver.memory", "20g")  // Increase based on system capacity
+      .config("spark.executor.memory", "18g")
       .getOrCreate()
     import spark.implicits._
 
     val toHexString = udf((index: Long) => java.lang.Long.toHexString(index))
     val currentDir = System.getProperty("user.dir")
-    val relativePath = "/data/12daysStayData"
-    val folderPath = currentDir+relativePath
-    val df = spark.read.parquet(folderPath)
+    val relativePath = "/data/6-stays_h3_region.parquet"
+    val folderPath = s"$currentDir$relativePath"
+    
+    println(s"Folder path: $folderPath")
+    val df = spark.read
+      .parquet(folderPath)
+    
     val indexDF = df.withColumnRenamed("stay_start_timestamp", "local_time")
       .withColumnRenamed("h3_id_region", "h3_index")
       .withColumn("h3_index_hex", toHexString(col("h3_index")))
-      .drop(col("h3_index"))
+      .drop("h3_index")
       .withColumnRenamed("h3_index_hex", "h3_index")
 
     //indexDF.show()

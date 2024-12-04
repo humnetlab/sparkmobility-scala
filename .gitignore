@@ -4,7 +4,12 @@
 # logs
 *.log
 
+# Data samples
+*.csv
+*.parquet
+
 # sbt specific
+data/
 dist/*
 target/
 lib_managed/
