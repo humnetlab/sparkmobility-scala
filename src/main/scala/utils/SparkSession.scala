@@ -64,7 +64,7 @@ object SparkFactory extends Logging {
         SparkSession
           .builder()
           .appName(appName)
-          .enableHiveSupport()
+          // .enableHiveSupport()
           .config(getSparkConf(runMode, appName, configOverrides))
           .getOrCreate()
       }

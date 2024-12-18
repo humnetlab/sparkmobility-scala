@@ -1,12 +1,11 @@
 {
-    "spark.master": "local",
+    "spark.master": "local[8]",
     "spark.eventLog.enabled": "true",
     "spark.network.timeout": "12000",
-    "spark.executor.extraJavaOptions": "-Djava.io.tmpdir=/Users/chrisc/Documents/humnetscala/tmp/",
     "spark.shuffle.compress": "true",
-    "spark.driver.memory": "4g",
-    "spark.executor.cores": "4",
-    "spark.local.dir": "/Users/chrisc/Documents/humnetscala/tmp/",
+    "spark.driver.memory": "20g",
+    "spark.executor.memory": "18g",
+    "spark.executor.cores": "8",
     "spark.sql.files.ignoreCorruptFiles": "true",
     "spark.ui.port": "5045"
   }

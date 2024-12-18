@@ -4,16 +4,25 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 import com.uber.h3core.H3Core
 import measures.{dailyVisitedLocation, extractTrips, locationDistribution, stayDurationDistribution}
+import utils.RunMode
+import utils.RunMode.RunMode
+import utils.TestUtils.runModeFromEnv
+import org.apache.spark.internal.Logging
+import utils.SparkFactory._
 
-object Main {
+object Main extends Logging{
+  val runMode : RunMode = runModeFromEnv()
+
   def main(args: Array[String]): Unit = {
-    val spark = SparkSession.builder
-      .appName("Filter")
-      .master("local[8]")
-      .config("spark.driver.memory", "20g")  // Increase based on system capacity
-      .config("spark.executor.memory", "18g")
-      .getOrCreate()
-    import spark.implicits._
+    log.info("Creating spark session")
+    // val spark = SparkSession.builder
+    //   .appName("Filter")
+    //   .master("local[8]")
+    //   .config("spark.driver.memory", "20g")  // Increase based on system capacity
+    //   .config("spark.executor.memory", "18g")
+    //   .getOrCreate()
+    val spark: SparkSession = createSparkSession(runMode, "TimeGeo")
+    // import spark.implicits._
 
     val toHexString = udf((index: Long) => java.lang.Long.toHexString(index))
     val currentDir = System.getProperty("user.dir")
