@@ -6,9 +6,13 @@ ThisBuild / resolvers ++= Seq(
   "Maven Central" at "https://repo1.maven.org/maven2/",
   "JCenter" at "https://jcenter.bintray.com/"
 )
+ 
 
 lazy val root = (project in file("."))
   .settings(
+    assemblyPackageScala / assembleArtifact := false,
+    assemblyPackageDependency / assembleArtifact := false,
+    assembly / mainClass := Some("pipelines.PipeExample"),
     name := "timegeo_1",
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-core" % "3.5.0",
@@ -19,5 +23,6 @@ lazy val root = (project in file("."))
       "org.json4s" %% "json4s-native" % "3.7.0-M3"
 
       //"org.apache.hadoop" % "hadoop-client-api" % "3.3.4"
-    )
+    ),
   )
+
