@@ -1,5 +1,8 @@
 ## sbt Project Instructions
 
+## Previous requirements
+Install Spark
+
 ### Setup
 
 First, run the following command to install the dependencies:
