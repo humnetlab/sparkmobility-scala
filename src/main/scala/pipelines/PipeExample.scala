@@ -1,87 +1,105 @@
 package pipelines
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{col, udf}
 
-class PipeExample {
-    // Class implementation goes here
-    def main(args: Array[String]): Unit = {
-        log.info("Creating spark session")
-        // val spark = SparkSession.builder
-        //   .appName("Filter")
-        //   .master("local[8]")
-        //   .config("spark.driver.memory", "20g")  // Increase based on system capacity
-        //   .config("spark.executor.memory", "18g")
-        //   .getOrCreate()
-        val spark: SparkSession = createSparkSession(runMode, "TimeGeo")
-        // import spark.implicits._
+import org.apache.spark.internal.Logging
+import sparkjobs.staydetection.StayDetection
+import org.apache.spark.sql.{DataFrame, SparkSession, functions => F, Row}
+import org.apache.spark.sql.SaveMode
 
-        val toHexString = udf((index: Long) => java.lang.Long.toHexString(index))
-        val currentDir = System.getProperty("user.dir")
-        val relativePath = "/data/6-stays_h3_region.parquet"
-        val folderPath = s"$currentDir$relativePath"
-        
-        println(s"Folder path: $folderPath")
-        val df = spark.read
-        .parquet(folderPath)
-        
-        val indexDF = df.withColumnRenamed("stay_start_timestamp", "local_time")
-        .withColumnRenamed("h3_id_region", "h3_index")
-        .withColumn("h3_index_hex", toHexString(col("h3_index")))
-        .drop("h3_index")
-        .withColumnRenamed("h3_index_hex", "h3_index")
+import utils.RunMode
+import utils.RunMode.RunMode
+import utils.SparkFactory._
+import utils.TestUtils.runModeFromEnv
 
-        //indexDF.show()
+class PipeExample extends Logging {
+  // Class implementation goes here
+  val runMode: RunMode = runModeFromEnv()
 
-        //Data Preprocessing
-        //filtering
-        //val filteredDF = dataLoadFilter.loadFilteredData(spark)//.limit(30)
+  val temporal_threshold_1: Long = 300 // second
+  val spatial_threshold: Double  = 300 // meter
+  val speed_threshold: Double =
+    6.0 // km/h, if larger than speed_threshold --> passing
+  val temporal_threshold_2: Int      = 3600 // second
+  val resolution: Int                = 9
+  val region_temporal_threshold: Int = 3600 // second
+  val passing                        = true
 
-        //h3 indexing
-        //val indexDF = h3Indexer.addIndex(spark, filteredDF, resolution = 10)
-        //indexDF.show()
-        // Stay Detection
-        /*
-        val folderPath = curDir + "/data/stays-h3-region"
-        val df = spark.read.parquet(folderPath)
-        val dfWithWeekday = df.withColumn("day", dayofweek(col("stay_start_timestamp")))
-        val stayDF = dfWithWeekday.withColumnRenamed("h3_id_region", "h3_index")
-        //stayDF.show(50, truncate=false)
+  def getStaysTest(relativePath: String): Unit = {
+    log.info("Creating spark session")
 
-        */
-        // Location Type Extraction
-        //val homeDF = locationType.homeLocation(spark, indexDF)
-        //val workDF = locationType.workLocation(spark, homeDF)
-        //shuffle and show
-        //workDF.orderBy(rand()).show(200, truncate = true)
-        //Experiment Area
-        //selected caid: 8a29a56c1577fff
+    val spark = SparkSession
+      .builder()
+      .appName("StayDetection")
+      .master("local[*]")
+      .config("spark.driver.memory", "64g")
+      .config("spark.executor.memory", "64g")
+      // .config("spark.executor.instances", "8")
+      // .config("spark.sql.shuffle.partitions", "20")
+      .getOrCreate()
+    import spark.implicits._
 
-        //unique locations?
-        //Save:
+    var dataDF = spark.read
+      .option("inferSchema", "true")
+      .parquet("./data/data_201901A") //   16.parquet
+      .withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
+    // .limit(300000)
 
-        //val outputPath = curDir + relPath
-        // Write the DataFrame in Parquet format
-        /*
-        workDF.write
-        .mode("overwrite") // Overwrites existing data at the output path
-        .format("parquet")
-        .save(outputPath)
+    log.info("Processing getStays")
+    // 1 getStays
+    val (getStays) = StayDetection.getStays(
+      dataDF,
+      spark,
+      temporal_threshold_1,
+      spatial_threshold
+    )
+    val getStaysCount = getStays.count()
+    log.info("getStays Count: " + getStaysCount)
+    log.info("Processing mapToH3")
 
-        */
+    // 2 mapToH3
+    val (passingResult, stays) = StayDetection.mapToH3(
+      getStays,
+      resolution,
+      temporal_threshold_2,
+      passing,
+      speed_threshold
+    )
 
-        //Metrics
-        //locationDistribution.locate(spark, data=workDF)
-        //val duration = stayDurationDistribution.duration(spark, data=workDF)
-        //val visitDF = dailyVisitedLocation.visit(spark, indexDF)
+    log.info("Processing getH3RegionMapping")
+    // 3 getH3RegionMapping
+    val h3RegionMapping = StayDetection.getH3RegionMapping(stays, spark)
 
-        val trips = extractTrips.trip(spark, indexDF)
-        trips.show()
+    log.info("Processing h3RegionMapping")
+    // h3RegionMapping
+    val staysJoined = stays
+      .join(h3RegionMapping, Seq("caid", "h3_id"), "left")
+      .orderBy("caid", "stay_index_h3")
+    log.info("Processing mergeH3Region")
 
-        //0000fb5bdd3906226293179557a7387fba6ca52ee26335f5ab489c4a1ada6924
+    // 4 mergeH3Region
+    val staysH3Region =
+      StayDetection.mergeH3Region(staysJoined, region_temporal_threshold)
+    // staysH3Region.show(10)
+    log.info("Writing document")
+    staysH3Region.write
+      .mode(SaveMode.Overwrite)
+      .parquet("./tem_output/6-stays_h3_region.parquet")
 
-        spark.stop()
-    }
-    def exampleFunction(param: String): String = {
-        s"Hello, $param"
-    }
+  }
+
+  def exampleFunction(param: String): String = {
+    s"Hello, $param"
+  }
+  def exampleSpark(param: String): Unit = {
+    log.info("Creating spark session")
+    val spark: SparkSession = createSparkSession(runMode, "SampleJob")
+
+    log.debug("Reading csv from datasets in test")
+
+    val csvDf = spark.read
+      .option("header", "true")
+      .csv("/Users/chris/Downloads/commute_bussines.csv")
+
+    csvDf.show(10, false)
+  }
 }
