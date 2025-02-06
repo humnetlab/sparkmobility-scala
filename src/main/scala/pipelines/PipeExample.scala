@@ -34,20 +34,52 @@ class PipeExample extends Logging {
 
     log.info("folder path: " + folderPath)
     val spark: SparkSession = createSparkSession(runMode, "SampleJob")
+    // val spark = SparkSession
+    //   .builder()
+    //   .appName("StayDetection")
+    //   .config("spark.master", "local[*]")
+    //   .config("spark.eventLog.enabled", "true")
+    //   .config("spark.eventLog.dir", "data/spark-events")
+    //   .config("spark.network.timeout", "12000")
+    //   .config("spark.shuffle.compress", "true")
+    //   .config("spark.driver.memory", "50g")
+    //   .config("spark.executor.memory", "50g")
+    //   .config(
+    //     "spark.executor.memoryOverhead",
+    //     "20g"
+    //   )
+    //   .config(
+    //     "spark.sql.files.ignoreCorruptFiles",
+    //     "true"
+    //   )
+    //   .config(
+    //     "spark.memory.offHeap.enabled",
+    //     "true"
+    //   )
+    //   .config(
+    //     "spark.memory.offHeap.size",
+    //     "50g"
+    //   )
+    //   .config("spark.executor.cores", "5")
+    //   .config("spark.executor.instances", "6")
+    //   .getOrCreate()
 
+    // import spark.implicits._
+    println(s"Folder path is: $folderPath")
     var dataDF = spark.read
       .option("inferSchema", "true")
       .parquet(folderPath)
-      // .withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
-    // .limit(300000)
+      .limit(3000000)
+
     dataDF = dataLoadFilter.loadFilteredData(spark, dataDF)
-    dataDF = dataDF.withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
+    dataDF =
+      dataDF.withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
     // dataDF = h3Indexer.addIndex(dataDF, resolution = 10)
     // dataDF.show(10)
-    
-    /**Stay Detection*/
+
+    /** Stay Detection */
     // dataDF = dataDF.withColumnRenamed("h3_id_region", "h3_index")
-    
+
     log.info("Processing getStays")
     // dataDF = dataDF.limit(1000000)
     // 1 getStays
