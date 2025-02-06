@@ -71,7 +71,6 @@ object StayDetection {
 
 
 def getStays(df: DataFrame, spark: SparkSession, delta_t: Long = 300, threshold: Double = 300): DataFrame = {
-
   // Define window specification to partition by 'caid' and order by 'utc_timestamp'
   val windowSpec: WindowSpec = Window.partitionBy("caid").orderBy("utc_timestamp")
 
@@ -88,7 +87,7 @@ def getStays(df: DataFrame, spark: SparkSession, delta_t: Long = 300, threshold:
     .agg(collect_list(struct("latitude", "longitude")).alias("group_data"))
     .rdd.flatMap { row =>
       val caid = row.getString(0)
-      val temporalStayId = row.getInt(1)
+      val temporalStayId = row.getLong(1)
       val groupData = row.getAs[scala.collection.Seq[Row]]("group_data").toSeq.map { r =>
         Map(
           "latitude" -> r.getAs[Double]("latitude"),
@@ -105,18 +104,21 @@ def getStays(df: DataFrame, spark: SparkSession, delta_t: Long = 300, threshold:
 
   // Add join key to the original DataFrame
   val dfWithJoinKey = dfWithStayId.withColumn("join_key", monotonically_increasing_id())
-
+  // Repartition the listDF using 'caid'
+  val repartitionedListDF = listDF.repartition(col("caid"))
+  var repartitioneddfWithJoinKey = dfWithJoinKey.repartition(col("caid"))
   // Join the DataFrame with the result DataFrame based on the join key
-  val joinedDF = dfWithJoinKey.join(listDF, "join_key").drop("join_key")
-
+  val joinedDF = repartitioneddfWithJoinKey.as("df1").join(repartitionedListDF.as("df2"), "join_key").drop("join_key")
+  // Drop duplicate 'caid' column
+  val deduplicatedDF = joinedDF.drop(joinedDF.col("df2.caid"))
   // Determine if a location qualifies as a stay based on temporal or distance criteria
-  val dfWithFinalStay = joinedDF.withColumn("stay", when(col("temporal_stay") === 1 || col("distance_threshold") === 1, 1).otherwise(0))
+  val dfWithFinalStay = deduplicatedDF.withColumn("stay", when(col("temporal_stay") === 1 || col("distance_threshold") === 1, 1).otherwise(0))
 
   // Assign a unique stay ID to each stay event
-  val dfWithFinalStayId = dfWithFinalStay.withColumn("stay_id", sum("stay").over(windowSpec))
+  val dfWithFinalStayId = dfWithFinalStay.withColumn("stay_id", sum(col("stay")).over(windowSpec))
 
   // Select the relevant columns and group by stay ID for final aggregation
-  val resultDF = dfWithFinalStayId.groupBy("caid", "stay_id")
+  val resultDF = dfWithFinalStayId.groupBy(col("caid"), col("stay_id"))
     .agg(
       min("utc_timestamp").alias("stay_start_timestamp"),
       (max("utc_timestamp") - min("utc_timestamp")).alias("stay_duration"),
