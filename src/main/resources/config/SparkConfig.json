@@ -1,11 +1,13 @@
 {
-    "spark.master": "local[8]",
+    "spark.master": "local[*]",
     "spark.eventLog.enabled": "true",
+    "spark.eventLog.dir": "data/spark-events",
     "spark.network.timeout": "12000",
     "spark.shuffle.compress": "true",
-    "spark.driver.memory": "20g",
-    "spark.executor.memory": "18g",
-    "spark.executor.cores": "8",
+    "spark.driver.memory": "50g",
+    "spark.executor.memory": "50g",
     "spark.sql.files.ignoreCorruptFiles": "true",
-    "spark.ui.port": "5045"
+    "spark.memory.offHeap.size": "50g",
+    "spark.executor.cores": "10",
+    "spark.executor.instances": "10"
   }

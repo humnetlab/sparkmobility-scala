@@ -10,6 +10,9 @@ import utils.RunMode
 import utils.RunMode.RunMode
 import utils.SparkFactory._
 import utils.TestUtils.runModeFromEnv
+import sparkjobs.filtering.dataLoadFilter
+import sparkjobs.filtering.h3Indexer
+import org.apache.spark.sql.functions._
 
 class PipeExample extends Logging {
   // Class implementation goes here
@@ -26,25 +29,37 @@ class PipeExample extends Logging {
 
   def getStaysTest(relativePath: String): Unit = {
     log.info("Creating spark session")
+    val currentDir = System.getProperty("user.dir")
+    val folderPath = s"$currentDir$relativePath"
 
-    val spark = SparkSession
-      .builder()
-      .appName("StayDetection")
-      .master("local[*]")
-      .config("spark.driver.memory", "64g")
-      .config("spark.executor.memory", "64g")
-      // .config("spark.executor.instances", "8")
-      // .config("spark.sql.shuffle.partitions", "20")
-      .getOrCreate()
-    import spark.implicits._
+    log.info("folder path: " + folderPath)
+    // val spark = SparkSession
+    //   .builder()
+    //   .appName("StayDetection")
+    //   .master("local[*]")
+    //   .config("spark.driver.memory", "64g")
+    //   .config("spark.executor.memory", "64g")
+    //   // .config("spark.executor.instances", "8")
+    //   // .config("spark.sql.shuffle.partitions", "20")
+    //   .getOrCreate()
+    // import spark.implicits._
+    val spark: SparkSession = createSparkSession(runMode, "SampleJob")
 
     var dataDF = spark.read
       .option("inferSchema", "true")
-      .parquet("./data/data_201901A") //   16.parquet
-      .withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
+      .parquet(folderPath)
+      // .withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
     // .limit(300000)
-
+    dataDF = dataLoadFilter.loadFilteredData(spark, dataDF)
+    dataDF = dataDF.withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
+    // dataDF = h3Indexer.addIndex(dataDF, resolution = 10)
+    dataDF.show(10)
+    
+    /**Stay Detection*/
+    // dataDF = dataDF.withColumnRenamed("h3_id_region", "h3_index")
+    
     log.info("Processing getStays")
+    dataDF = dataDF.limit(1000000)
     // 1 getStays
     val (getStays) = StayDetection.getStays(
       dataDF,
@@ -52,8 +67,8 @@ class PipeExample extends Logging {
       temporal_threshold_1,
       spatial_threshold
     )
-    val getStaysCount = getStays.count()
-    log.info("getStays Count: " + getStaysCount)
+    // val getStaysCount = getStays.count() This takes too much time to process the count
+    // log.info("getStays Count: " + getStaysCount)
     log.info("Processing mapToH3")
 
     // 2 mapToH3

@@ -18,7 +18,7 @@ else:
 # Access the correct Scala object
 pipe_example_instance = jvm.pipelines.PipeExample()
 
-path = "/data/6-stays_h3_region.parquet"
-result_2 = pipe_example_instance.exampleFunction(path)
+path = "/data/66-stays_h3_region.parquet"
+result_2 = pipe_example_instance.getStaysTest(path)
 
 print("Result:", result_2)
