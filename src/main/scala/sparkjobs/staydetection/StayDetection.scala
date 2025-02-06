@@ -104,8 +104,11 @@ def getStays(df: DataFrame, spark: SparkSession, delta_t: Long = 300, threshold:
 
   // Add join key to the original DataFrame
   val dfWithJoinKey = dfWithStayId.withColumn("join_key", monotonically_increasing_id())
+  // Repartition the listDF using 'caid'
+  val repartitionedListDF = listDF.repartition(col("caid"))
+  var repartitioneddfWithJoinKey = dfWithJoinKey.repartition(col("caid"))
   // Join the DataFrame with the result DataFrame based on the join key
-  val joinedDF = dfWithJoinKey.as("df1").join(listDF.as("df2"), "join_key").drop("join_key")
+  val joinedDF = repartitioneddfWithJoinKey.as("df1").join(repartitionedListDF.as("df2"), "join_key").drop("join_key")
   // Drop duplicate 'caid' column
   val deduplicatedDF = joinedDF.drop(joinedDF.col("df2.caid"))
   // Determine if a location qualifies as a stay based on temporal or distance criteria

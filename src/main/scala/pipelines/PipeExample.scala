@@ -33,16 +33,6 @@ class PipeExample extends Logging {
     val folderPath = s"$currentDir$relativePath"
 
     log.info("folder path: " + folderPath)
-    // val spark = SparkSession
-    //   .builder()
-    //   .appName("StayDetection")
-    //   .master("local[*]")
-    //   .config("spark.driver.memory", "64g")
-    //   .config("spark.executor.memory", "64g")
-    //   // .config("spark.executor.instances", "8")
-    //   // .config("spark.sql.shuffle.partitions", "20")
-    //   .getOrCreate()
-    // import spark.implicits._
     val spark: SparkSession = createSparkSession(runMode, "SampleJob")
 
     var dataDF = spark.read
@@ -53,13 +43,13 @@ class PipeExample extends Logging {
     dataDF = dataLoadFilter.loadFilteredData(spark, dataDF)
     dataDF = dataDF.withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
     // dataDF = h3Indexer.addIndex(dataDF, resolution = 10)
-    dataDF.show(10)
+    // dataDF.show(10)
     
     /**Stay Detection*/
     // dataDF = dataDF.withColumnRenamed("h3_id_region", "h3_index")
     
     log.info("Processing getStays")
-    dataDF = dataDF.limit(1000000)
+    // dataDF = dataDF.limit(1000000)
     // 1 getStays
     val (getStays) = StayDetection.getStays(
       dataDF,
@@ -98,7 +88,7 @@ class PipeExample extends Logging {
     log.info("Writing document")
     staysH3Region.write
       .mode(SaveMode.Overwrite)
-      .parquet("./tem_output/6-stays_h3_region.parquet")
+      .parquet("data/test/6-stays_h3_region.parquet")
 
   }
 

@@ -6,8 +6,10 @@
     "spark.shuffle.compress": "true",
     "spark.driver.memory": "50g",
     "spark.executor.memory": "50g",
+    "spark.executor.memoryOverhead": "20g",
     "spark.sql.files.ignoreCorruptFiles": "true",
+    "spark.memory.offHeap.enabled": "true",
     "spark.memory.offHeap.size": "50g",
-    "spark.executor.cores": "10",
+    "spark.executor.cores": "5",
     "spark.executor.instances": "10"
   }
