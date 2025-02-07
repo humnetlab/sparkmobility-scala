@@ -13,6 +13,7 @@ import utils.TestUtils.runModeFromEnv
 import sparkjobs.filtering.dataLoadFilter
 import sparkjobs.filtering.h3Indexer
 import org.apache.spark.sql.functions._
+import sparkjobs.locations.locationType
 
 class PipeExample extends Logging {
   // Class implementation goes here
@@ -34,20 +35,20 @@ class PipeExample extends Logging {
 
     log.info("folder path: " + folderPath)
     val spark: SparkSession = createSparkSession(runMode, "SampleJob")
-
     var dataDF = spark.read
       .option("inferSchema", "true")
       .parquet(folderPath)
-      // .withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
-    // .limit(300000)
+      .limit(1000000)
+
     dataDF = dataLoadFilter.loadFilteredData(spark, dataDF)
-    dataDF = dataDF.withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
+    dataDF =
+      dataDF.withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
     // dataDF = h3Indexer.addIndex(dataDF, resolution = 10)
     // dataDF.show(10)
-    
-    /**Stay Detection*/
+
+    /** Stay Detection */
     // dataDF = dataDF.withColumnRenamed("h3_id_region", "h3_index")
-    
+
     log.info("Processing getStays")
     // dataDF = dataDF.limit(1000000)
     // 1 getStays
@@ -89,22 +90,32 @@ class PipeExample extends Logging {
     staysH3Region.write
       .mode(SaveMode.Overwrite)
       .parquet("data/test/6-stays_h3_region.parquet")
-
+    
   }
 
   def exampleFunction(param: String): String = {
     s"Hello, $param"
   }
-  def exampleSpark(param: String): Unit = {
+  def getHomeWorkLocation(relativePath: String): (DataFrame, DataFrame) = {
     log.info("Creating spark session")
+    val currentDir = System.getProperty("user.dir")
+    val folderPath = s"$currentDir$relativePath"
+
+    log.info("folder path: " + folderPath)
     val spark: SparkSession = createSparkSession(runMode, "SampleJob")
+    var dataDF = spark.read
+      .option("inferSchema", "true")
+      .parquet(folderPath)
+    val toHexString = udf((index: Long) => java.lang.Long.toHexString(index))
+    val indexDF = dataDF.withColumnRenamed("stay_start_timestamp", "local_time")
+      .withColumnRenamed("h3_id_region", "h3_index")
+      .withColumn("h3_index_hex", toHexString(col("h3_index")))
+      .drop(col("h3_index"))
+      .withColumnRenamed("h3_index_hex", "h3_index")
 
-    log.debug("Reading csv from datasets in test")
+    val homeDF = locationType.homeLocation(indexDF)
+    val workDF = locationType.workLocation(homeDF)
 
-    val csvDf = spark.read
-      .option("header", "true")
-      .csv("/Users/chris/Downloads/commute_bussines.csv")
-
-    csvDf.show(10, false)
+    (homeDF, workDF)
   }
 }

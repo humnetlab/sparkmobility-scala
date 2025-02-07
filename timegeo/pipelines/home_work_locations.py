@@ -1,16 +1,18 @@
 from pyspark.sql import SparkSession
 
-#BASIC SETUP
 spark = SparkSession.builder \
     .appName("Example") \
     .config("spark.jars", "/Users/chris/Documents/humnetmobility/target/scala-2.13/timegeo010.jar") \
     .getOrCreate()
 
+
 jvm = spark._jvm
 
 pipe_example_instance = jvm.pipelines.PipeExample()
 
-path = "/data/09.parquet"
-result_2 = pipe_example_instance.getStaysTest(path)
+path = "/data/test/6-stays_h3_region.parquet"
+result = pipe_example_instance.getHomeWorkLocation(path)
 
-print("Result:", result_2)
+homes = result._1()
+works = result._2()
+homes.show()

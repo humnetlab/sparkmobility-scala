@@ -1,6 +1,6 @@
-package sparkjobs
+package sparkjobs.locations
 import com.uber.h3core.H3Core
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
@@ -11,13 +11,13 @@ object locationType extends Serializable{
   object H3CoreSingleton extends Serializable {
     @transient lazy val instance: H3Core = H3Core.newInstance()
   }
-  def homeLocation(spark: SparkSession, data: DataFrame): DataFrame ={
+  def homeLocation(data: DataFrame): DataFrame ={
     /*
     * Home locations of each user are labelled as type = 1.
     * Weekday night, when user is most likely to be at home, is defined as from 7pm of
     * Sunday to Thursday, to 8am of the following weekday.
     */
-    val params = FilterParameters.fromJsonFile("/src/main/resources/config/DefaultParameters")
+    val params = FilterParameters.fromJsonFile("src/main/resources/config/DefaultParameters.json")
 
     val conditionHome = (
       (dayofweek(col("local_time")).isin(1, 2, 3, 4, 5) && hour(col("local_time")).between(params.workToHome, 23)) ||
@@ -47,7 +47,7 @@ object locationType extends Serializable{
     resultDF
   }
 
-  def workLocation(spark: SparkSession, data: DataFrame): DataFrame ={
+  def workLocation(data: DataFrame): DataFrame ={
     /*
     * home is the dataframe containing home h3 hexagon of each user, inherited from
     * function homeLocation. Work location should satisfy the following criteria:
@@ -57,7 +57,7 @@ object locationType extends Serializable{
     * 4. distance from home > 500m
     * */
     //val h3 = H3Core.newInstance()
-    val params = FilterParameters.fromJsonFile("/src/main/resources/config/DefaultParameters.json")
+    val params = FilterParameters.fromJsonFile("src/main/resources/config/DefaultParameters.json")
 
     val conditionWork = dayofweek(col("local_time")).isin(1, 2, 3, 4, 5) && hour(col("local_time")).between(params.homeToWork, params.workToHome)
     val workDF = data.filter(conditionWork)

@@ -16,7 +16,8 @@ object Main extends Logging{
 
   def main(args: Array[String]): Unit = {
     var pipe = new PipeExample()
-    pipe.getStaysTest("/data/09.parquet")
+    // pipe.getStaysTest("/data/09.parquet")
+    pipe.getHomeWorkLocation("/data/test/6-stays_h3_region.parquet")
     // log.info("Creating spark session")
     // val spark = SparkSession.builder
     //   .appName("Filter")
