@@ -1,6 +1,26 @@
 ## Timegeo
 
-## Setup and Installation
+## Pre-requisites
+### Packaging the Scala Code
+
+Whether modifying the Scala core of the project or running it, you must compile the Scala code and create a JAR file. Follow these steps:
+
+1. **Download and Install SBT:**
+
+    Install sbt on your machine. You can follow the instructions on the [official sbt documentation](https://www.scala-sbt.org/1.x/docs/Setup.html).
+
+2. **Package the Scala Code:**
+
+    Install,Compile and Package the Scala code using sbt:
+
+    ```bash
+    sbt update
+    sbt compile
+    sbt assembly
+    ```
+    This process creates a `.jar` file that should be submitted to the Spark cluster. Ideally, place it in the root directory of this project. You will need the PATH to this jar in the next steps.
+
+## Setup and Installation of Spark
 
 Sometimes, the default Scala version is 2.12. Since the project is compatible only with Scala 2.13 and above, you must set the Scala version before setting up the project. To do this, follow the instructions below:
 
@@ -90,8 +110,26 @@ If you are using conda follow this extract steps steps
       ```
 
 
+### Using the Project
 
-### Working with Scala core
+1. **Activate env**
+    
+    Activate the virtual environment:
+
+    ```bash
+    source env/bin/activate
+    ```
+    or
+    ```bash
+    conda activate environment_name
+    ```
+
+2. **Set environment variable**
+    Set the following environment variable with the path to the jar file:
+
+    ```bash
+    export TIMEGEO_JAR=/path/to/jar/file
+    ```
 
 ### Usage
 
@@ -108,12 +146,13 @@ The scala code is located in the `src/main/scala` directory. You can modify the 
 Once edited you must follow the steps below to compile and package the code.
 
 ```
+sbt update
 sbt compile
-```
-```
 sbt assembly
 ```
 This process creates a .jar file that should be submitted to the Spark cluster. Ideally, place it in the root directory of this project.
+
+Then you can replace the path to the jar file in the `spark-submit` command in the `run.sh` file.
 
 For more information on sbt, visit the [official sbt documentation](https://www.scala-sbt.org/1.x/docs/).
 

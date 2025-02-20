@@ -1,11 +1,13 @@
 from pyspark.sql import SparkSession
+import os
+from pyspark.sql import SparkSession
 
-#BASIC SETUP
+TIMEGEO_JAR = os.getenv("TIMEGEO_JAR", "./timegeo010.jar")
+
 spark = SparkSession.builder \
-    .appName("Example") \
-    .config("spark.jars", "./timegeo010.jar") \
+    .appName("Timegeo") \
+    .config("spark.jars", TIMEGEO_JAR) \
     .getOrCreate()
-
 jvm = spark._jvm
 
 pipe_example_instance = jvm.pipelines.PipeExample()
