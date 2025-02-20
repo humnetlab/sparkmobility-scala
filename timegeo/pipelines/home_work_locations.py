@@ -2,7 +2,7 @@ from pyspark.sql import SparkSession
 
 spark = SparkSession.builder \
     .appName("Example") \
-    .config("spark.jars", "/Users/chris/Documents/humnetmobility/target/scala-2.13/timegeo010.jar") \
+    .config("spark.jars", "./timegeo010.jar") \
     .getOrCreate()
 
 
