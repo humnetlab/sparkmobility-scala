@@ -1,19 +1,21 @@
 package pipelines
-import org.apache.spark.sql.SparkSession
 
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.internal.Logging
-import sparkjobs.staydetection.StayDetection
 import org.apache.spark.sql.{DataFrame, SparkSession, functions => F, Row}
 import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.functions._
+
+import sparkjobs.filtering.dataLoadFilter
+import sparkjobs.filtering.h3Indexer
+import sparkjobs.locations.locationType
+import sparkjobs.staydetection.StayDetection
 
 import utils.RunMode
 import utils.RunMode.RunMode
 import utils.SparkFactory._
 import utils.TestUtils.runModeFromEnv
-import sparkjobs.filtering.dataLoadFilter
-import sparkjobs.filtering.h3Indexer
-import org.apache.spark.sql.functions._
-import sparkjobs.locations.locationType
+import utils.FileUtils
 
 class PipeExample extends Logging {
   // Class implementation goes here
@@ -24,30 +26,29 @@ class PipeExample extends Logging {
   val speed_threshold: Double =
     6.0 // km/h, if larger than speed_threshold --> passing
   val temporal_threshold_2: Int      = 3600 // second
-  val resolution: Int                = 9
+  val resolution: Int                = 8
   val region_temporal_threshold: Int = 3600 // second
   val passing                        = true
 
-  def getStaysTest(relativePath: String): Unit = {
+  def getStaysTest(fullPath: String): Unit = {
     log.info("Creating spark session")
-    val currentDir = System.getProperty("user.dir")
-    val folderPath = s"$currentDir$relativePath"
+    // val currentDir = System.getProperty("user.dir")
+    val folderPath = s"$fullPath"
 
     log.info("folder path: " + folderPath)
     val spark: SparkSession = createSparkSession(runMode, "SampleJob")
-    var dataDF = spark.read
-      .option("inferSchema", "true")
-      .parquet(folderPath)
-      .limit(1000000)
-
+    var dataDF = FileUtils.readParquetData(folderPath, spark)
+    dataDF = dataDF.select(
+      col("_c0").alias("caid"),
+      col("_c2").alias("latitude"),
+      col("_c3").alias("longitude"),
+      col("_c5").alias("utc_timestamp")
+    )
     dataDF = dataLoadFilter.loadFilteredData(spark, dataDF)
-    dataDF =
-      dataDF.withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
-    // dataDF = h3Indexer.addIndex(dataDF, resolution = 10)
-    // dataDF.show(10)
+    
+    dataDF = dataDF.withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
 
     /** Stay Detection */
-    // dataDF = dataDF.withColumnRenamed("h3_id_region", "h3_index")
 
     log.info("Processing getStays")
     // dataDF = dataDF.limit(1000000)
@@ -89,17 +90,17 @@ class PipeExample extends Logging {
     log.info("Writing document")
     staysH3Region.write
       .mode(SaveMode.Overwrite)
-      .parquet("data/test/6-stays_h3_region.parquet")
+      .parquet("/Users/chris/Documents/quadrant/output/stays.parquet")
     
   }
 
   def exampleFunction(param: String): String = {
     s"Hello, $param"
   }
-  def getHomeWorkLocation(relativePath: String): (DataFrame, DataFrame) = {
+  def getHomeWorkLocation(folderPath: String): Unit = {
     log.info("Creating spark session")
-    val currentDir = System.getProperty("user.dir")
-    val folderPath = s"$currentDir$relativePath"
+    // val currentDir = System.getProperty("user.dir")
+    // val folderPath = s"$currentDir$relativePath"
 
     log.info("folder path: " + folderPath)
     val spark: SparkSession = createSparkSession(runMode, "SampleJob")
@@ -115,7 +116,16 @@ class PipeExample extends Logging {
 
     val homeDF = locationType.homeLocation(indexDF)
     val workDF = locationType.workLocation(homeDF)
-
-    (homeDF, workDF)
+    
+    log.info("Writing Home document")
+    homeDF.repartition(16).write
+      .option("compression", "snappy") 
+      .mode(SaveMode.Overwrite)
+      .parquet("/Users/chris/Documents/quadrant/output/home.parquet")
+    log.info("Writing Work document")
+    workDF.repartition(16).write
+      .option("compression", "snappy") 
+      .mode(SaveMode.Overwrite)
+      .parquet("/Users/chris/Documents/quadrant/output/work.parquet")
   }
 }

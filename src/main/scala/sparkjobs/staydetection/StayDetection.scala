@@ -86,7 +86,7 @@ def getStays(df: DataFrame, spark: SparkSession, delta_t: Long = 300, threshold:
   val resultRDD = dfWithStayId.groupBy("caid", "temporal_stay_id")
     .agg(collect_list(struct("latitude", "longitude")).alias("group_data"))
     .rdd.flatMap { row =>
-      val caid = row.getString(0)
+      val caid = row.get(0).toString
       val temporalStayId = row.getLong(1)
       val groupData = row.getAs[scala.collection.Seq[Row]]("group_data").toSeq.map { r =>
         Map(
