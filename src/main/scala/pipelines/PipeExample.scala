@@ -5,6 +5,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SparkSession, functions => F, Row}
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types._
 
 import sparkjobs.filtering.dataLoadFilter
 import sparkjobs.filtering.h3Indexer
@@ -87,15 +88,47 @@ class PipeExample extends Logging {
     val staysH3Region =
       StayDetection.mergeH3Region(staysJoined, region_temporal_threshold)
     // staysH3Region.show(10)
+    var extendDF = staysH3Region
+      .withColumn("local_time", col("stay_start_timestamp"))
+      .withColumn("h3_index", expr("hex(cast(h3_id_region as bigint))"))
+      .withColumn("day_of_week", dayofweek(col("local_time")))
+      .withColumn("hour_of_day", hour(col("local_time")))
     log.info("Writing document")
-    staysH3Region.write
-      .mode(SaveMode.Overwrite)
-      .parquet("/Users/chris/Documents/quadrant/output/stays.parquet")
+    extendDF.write
+      .parquet("/data_1/quadrant/output/stays_full.parquet")
     
   }
 
   def exampleFunction(param: String): String = {
     s"Hello, $param"
+  }
+  def appendNeededColumns(folderPath: String): Unit = {
+    log.info("folder path: " + folderPath)
+    val spark: SparkSession = createSparkSession(runMode, "SampleJob")
+    // var DAY = 0
+    // var SECOND = 3
+    val schema = StructType(Seq(
+      StructField("caid", LongType, nullable = true),
+      StructField("h3_region_stay_id", LongType, nullable = true),
+      StructField("stay_start_timestamp", TimestampType, nullable = true),
+      StructField("stay_end_timestamp", TimestampType, nullable = true),
+      StructField("stay_duration", DayTimeIntervalType(0, 3)	, nullable = true),
+      StructField("h3_id_region", StringType, nullable = true)
+    ))
+
+    var dataDF = spark.read
+      .schema(schema)
+      .parquet(folderPath)
+    
+
+    // val toHexString = udf((index: Long) => java.lang.Long.toHexString(index))
+    var extendDF = dataDF
+      .withColumn("local_time", col("stay_start_timestamp"))
+      .withColumn("h3_index", expr("hex(cast(h3_id_region as bigint))"))
+      .withColumn("day_of_week", dayofweek(col("local_time")))
+      .withColumn("hour_of_day", hour(col("local_time")))
+    extendDF.write
+      .parquet("/data_1/quadrant/output/staysExtent.parquet")
   }
   def getHomeWorkLocation(folderPath: String): Unit = {
     log.info("Creating spark session")
@@ -113,19 +146,18 @@ class PipeExample extends Logging {
       .withColumn("h3_index_hex", toHexString(col("h3_index")))
       .drop(col("h3_index"))
       .withColumnRenamed("h3_index_hex", "h3_index")
-
+    
     val homeDF = locationType.homeLocation(indexDF)
-    val workDF = locationType.workLocation(homeDF)
+    // val workDF = locationType.workLocation(homeDF)
     
     log.info("Writing Home document")
-    homeDF.repartition(16).write
-      .option("compression", "snappy") 
+    homeDF.coalesce(50).write
       .mode(SaveMode.Overwrite)
-      .parquet("/Users/chris/Documents/quadrant/output/home.parquet")
-    log.info("Writing Work document")
-    workDF.repartition(16).write
-      .option("compression", "snappy") 
-      .mode(SaveMode.Overwrite)
-      .parquet("/Users/chris/Documents/quadrant/output/work.parquet")
+      .parquet("/home/christopher/humnetmobility/data/home.parquet")
+    // log.info("Writing Work document")
+    // workDF.repartition(16).write
+    //   .option("compression", "snappy") 
+    //   .mode(SaveMode.Overwrite)
+    //   .parquet("/home/christopher/humnetmobility/data/work.parquet")
   }
 }
