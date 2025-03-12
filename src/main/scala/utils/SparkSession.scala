@@ -57,7 +57,8 @@ object SparkFactory extends Logging {
       }
     }
     // SparkUdfs.registerUDFs()(implicitly(spark))
-    hadoopConfigurations(spark)
+    // hadoopConfigurations(spark)
+    spark
   }
 
 //  def main(args: Array[String]): Unit = {

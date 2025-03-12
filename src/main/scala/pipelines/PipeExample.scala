@@ -1,5 +1,6 @@
 package pipelines
 
+import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, SparkSession, functions => F, Row}
@@ -38,6 +39,7 @@ class PipeExample extends Logging {
 
     log.info("folder path: " + folderPath)
     val spark: SparkSession = createSparkSession(runMode, "SampleJob")
+    Logger.getRootLogger.setLevel(Level.WARN)
     var dataDF = FileUtils.readParquetData(folderPath, spark)
     dataDF = dataDF.select(
       col("_c0").alias("caid"),
@@ -45,14 +47,14 @@ class PipeExample extends Logging {
       col("_c3").alias("longitude"),
       col("_c5").alias("utc_timestamp")
     )
+    // dataDF = dataDF.sample(withReplacement = false, fraction = 0.05, seed = 42)
+
     dataDF = dataLoadFilter.loadFilteredData(spark, dataDF)
-    
     dataDF = dataDF.withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
 
     /** Stay Detection */
 
     log.info("Processing getStays")
-    // dataDF = dataDF.limit(1000000)
     // 1 getStays
     val (getStays) = StayDetection.getStays(
       dataDF,
@@ -63,6 +65,7 @@ class PipeExample extends Logging {
     // val getStaysCount = getStays.count() This takes too much time to process the count
     // log.info("getStays Count: " + getStaysCount)
     log.info("Processing mapToH3")
+    // getStays.count() == 309430
 
     // 2 mapToH3
     val (passingResult, stays) = StayDetection.mapToH3(
@@ -72,31 +75,28 @@ class PipeExample extends Logging {
       passing,
       speed_threshold
     )
+    // 38330 stays
+    val staysCached = stays.repartition(col("caid")).cache()
 
+    staysCached.count()
     log.info("Processing getH3RegionMapping")
     // 3 getH3RegionMapping
-    val h3RegionMapping = StayDetection.getH3RegionMapping(stays, spark)
+    val h3RegionMapping = StayDetection.getH3RegionMapping(staysCached, spark)
 
     log.info("Processing h3RegionMapping")
     // h3RegionMapping
-    val staysJoined = stays
-      .join(h3RegionMapping, Seq("caid", "h3_id"), "left")
-      .orderBy("caid", "stay_index_h3")
+    val staysJoined = staysCached
+      .join(broadcast(h3RegionMapping), Seq("caid", "h3_id"), "left")
     log.info("Processing mergeH3Region")
-
+    
     // 4 mergeH3Region
     val staysH3Region =
       StayDetection.mergeH3Region(staysJoined, region_temporal_threshold)
+    staysCached.unpersist()
     // staysH3Region.show(10)
-    var extendDF = staysH3Region
-      .withColumn("local_time", col("stay_start_timestamp"))
-      .withColumn("h3_index", expr("hex(cast(h3_id_region as bigint))"))
-      .withColumn("day_of_week", dayofweek(col("local_time")))
-      .withColumn("hour_of_day", hour(col("local_time")))
     log.info("Writing document")
-    extendDF.write
+    staysH3Region.cache().write
       .parquet("/data_1/quadrant/output/stays_full.parquet")
-    
   }
 
   def exampleFunction(param: String): String = {
