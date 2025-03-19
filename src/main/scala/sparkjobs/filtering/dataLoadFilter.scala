@@ -38,8 +38,6 @@ object dataLoadFilter {
     val dfWithWeekday =
       dfConvertTime.withColumn("day", dayofweek(col("local_time")))
 
-    val rowCount = filteredDF.count()
-
     dfWithWeekday
   }
 

@@ -1,3 +1,5 @@
+package com.timegeo
+
 import org.apache.spark
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
@@ -40,6 +42,7 @@ object Main extends Logging{
   // }
 
   def main(args: Array[String]): Unit = {
+    
     log.info("Creating spark session and running the job")
     var pipe = new PipeExample()
 
@@ -49,10 +52,10 @@ object Main extends Logging{
     // folders.foreach { folder =>
     //   repartitionParquet(spark, folder.getAbsolutePath)
     // }
-    // pipe.getStaysTest("/Users/chris/Documents/quadrant/output/filter_partioned")
-    var input: String = "/Users/chris/Documents/quadrant/output/filter_partioned"
-    var output: String = "/Users/chris/Documents/quadrant/output/stays_full.parquet"
-    pipe.getStaysTest(input, output)
+    // pipe.getStaysTest("/Users/chrigits/Documents/quadrant/output/filter_partioned")
+    var input: String = "/data_1/quadrant/output/filter_partioned/day=2022-11-30"
+    var output: String = "/data_1/quadrant/output/stays_full.parquet"
+    pipe.getStays(input, output)
 
     // pipe.appendNeededColumns("/Users/chris/Documents/quadrant/output/stays.parquet")
     // pipe.getHomeWorkLocation("/data_1/quadrant/output/stays.parquet")

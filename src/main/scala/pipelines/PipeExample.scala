@@ -25,7 +25,7 @@ class PipeExample extends Logging {
   // Class implementation goes here
   val runMode: RunMode = runModeFromEnv()
 
-  def getStaysTest(fullPath: String, outputPath: String, configFile: String = "src/main/resources/config/DefaultParameters.json"): Unit = {
+  def getStays(fullPath: String, outputPath: String, configFile: String = "src/main/resources/config/DefaultParameters.json"): Unit = {
     log.info("Creating spark session")
     val params = FilterParameters.fromJsonFile(configFile)
     val folderPath = s"$fullPath"
@@ -34,6 +34,8 @@ class PipeExample extends Logging {
     val spark: SparkSession = createSparkSession(runMode, "SampleJob")
     Logger.getRootLogger.setLevel(Level.WARN)
     var dataDF = FileUtils.readParquetData(folderPath, spark)
+    // dataDF = dataDF.sample(withReplacement = false, fraction = 0.1, seed = 42)
+
     // dataDF = dataDF.limit(1000000)
     dataDF = dataDF.select(
       col("_c0").alias("caid"),
@@ -43,10 +45,15 @@ class PipeExample extends Logging {
     )
     dataDF = dataLoadFilter.loadFilteredData(spark, dataDF, params)
     
-    dataDF = dataDF.withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
+    dataDF = dataDF.select(
+      col("caid"),
+      col("latitude"),
+      col("longitude"),
+      to_timestamp(col("utc_timestamp")).as("utc_timestamp")
+    )
 
     /** Stay Detection */
-
+    dataDF = dataDF.repartition(col("caid"))
     log.info("Processing getStays")
     // 1 getStays
     val (getStays) = StayDetection.getStays(
@@ -54,7 +61,8 @@ class PipeExample extends Logging {
       spark,
       params.deltaT,
       params.spatialThreshold
-    )
+    ).cache()
+    getStays.count()
     // val getStaysCount = getStays.count() This takes too much time to process the count
     // log.info("getStays Count: " + getStaysCount)
     log.info("Processing mapToH3")
@@ -69,23 +77,22 @@ class PipeExample extends Logging {
       params.speedThreshold
     )
     // 38330 stays
-    val staysCached = stays.repartition(col("caid")).cache()
 
-    staysCached.count()
+    
     log.info("Processing getH3RegionMapping")
     // 3 getH3RegionMapping
-    val h3RegionMapping = StayDetection.getH3RegionMapping(staysCached, spark)
+    val h3RegionMapping = StayDetection.getH3RegionMapping(stays, spark)
 
     log.info("Processing h3RegionMapping")
     // h3RegionMapping
-    val staysJoined = staysCached
+    val staysJoined = stays
       .join(h3RegionMapping, Seq("caid", "h3_id"), "left")
     log.info("Processing mergeH3Region")
     
     // 4 mergeH3Region
     val staysH3Region =
       StayDetection.mergeH3Region(staysJoined, params.regionalTemporalThreshold)
-    staysCached.unpersist()
+    getStays.unpersist()
     // staysH3Region.show(10)
     log.info("Writing document")
     staysH3Region.write
