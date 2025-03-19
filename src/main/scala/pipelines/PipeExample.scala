@@ -34,7 +34,7 @@ class PipeExample extends Logging {
     val spark: SparkSession = createSparkSession(runMode, "SampleJob")
     Logger.getRootLogger.setLevel(Level.WARN)
     var dataDF = FileUtils.readParquetData(folderPath, spark)
-    dataDF = dataDF.limit(1000000)
+    // dataDF = dataDF.limit(1000000)
     dataDF = dataDF.select(
       col("_c0").alias("caid"),
       col("_c2").alias("latitude"),
@@ -79,7 +79,7 @@ class PipeExample extends Logging {
     log.info("Processing h3RegionMapping")
     // h3RegionMapping
     val staysJoined = staysCached
-      .join(broadcast(h3RegionMapping), Seq("caid", "h3_id"), "left")
+      .join(h3RegionMapping, Seq("caid", "h3_id"), "left")
     log.info("Processing mergeH3Region")
     
     // 4 mergeH3Region
