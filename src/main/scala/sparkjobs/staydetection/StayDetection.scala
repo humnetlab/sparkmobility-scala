@@ -424,30 +424,26 @@ object StayDetection {
 
     val windowSpec = Window.partitionBy("caid").orderBy("stay_index_h3")
 
-    // create lag col
-    val dfWithLag = df
-      .withColumn(
-        "lagged_h3_id_region",
-        lag("h3_id_region", 1).over(windowSpec)
-      )
-      .withColumn(
-        "prev_h3_stay_end_time",
-        lag("h3_stay_end_time", 1).over(windowSpec)
-      )
-      .withColumn(
-        "region_change",
-        when(
-          col("lagged_h3_id_region") =!= col("h3_id_region") ||
-            (unix_timestamp(col("h3_stay_start_time")) - unix_timestamp(
-              col("prev_h3_stay_end_time")
-            ) > temporalThreshold),
-          1
-        ).otherwise(0)
-      )
-      .withColumn(
-        "h3_region_stay_id",
-        sum("region_change").over(windowSpec)
-      ).cache()
+    // Combine window operations to reduce DataFrame creation overhead
+    val dfWithLag = df.select(
+      col("*"),
+      lag("h3_id_region", 1).over(windowSpec).as("lagged_h3_id_region"),
+      lag("h3_stay_end_time", 1).over(windowSpec).as("prev_h3_stay_end_time")
+    ).withColumn(
+      "h3_region_stay_id",
+      sum(
+      when(
+        col("lagged_h3_id_region") =!= col("h3_id_region") ||
+        (unix_timestamp(col("h3_stay_start_time")) - unix_timestamp(
+          col("prev_h3_stay_end_time")
+        )) > temporalThreshold,
+        1
+      ).otherwise(0)
+      ).over(windowSpec)
+    ).cache()
+
+
+
     // aggregate regional stays info
     val result = dfWithLag
       .groupBy("caid", "h3_region_stay_id")

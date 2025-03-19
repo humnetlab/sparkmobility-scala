@@ -12,44 +12,37 @@ import sparkjobs.filtering.dataLoadFilter
 import sparkjobs.filtering.h3Indexer
 import sparkjobs.locations.locationType
 import sparkjobs.staydetection.StayDetection
+import sparkjobs.filtering.FilterParameters
 
 import utils.RunMode
 import utils.RunMode.RunMode
 import utils.SparkFactory._
 import utils.TestUtils.runModeFromEnv
 import utils.FileUtils
+import scala.annotation.meta.param
 
 class PipeExample extends Logging {
   // Class implementation goes here
   val runMode: RunMode = runModeFromEnv()
 
-  val temporal_threshold_1: Long = 300 // second
-  val spatial_threshold: Double  = 300 // meter
-  val speed_threshold: Double =
-    6.0 // km/h, if larger than speed_threshold --> passing
-  val temporal_threshold_2: Int      = 3600 // second
-  val resolution: Int                = 8
-  val region_temporal_threshold: Int = 3600 // second
-  val passing                        = true
-
-  def getStaysTest(fullPath: String): Unit = {
+  def getStaysTest(fullPath: String, outputPath: String, configFile: String = "src/main/resources/config/DefaultParameters.json"): Unit = {
     log.info("Creating spark session")
-    // val currentDir = System.getProperty("user.dir")
+    val params = FilterParameters.fromJsonFile(configFile)
     val folderPath = s"$fullPath"
 
     log.info("folder path: " + folderPath)
     val spark: SparkSession = createSparkSession(runMode, "SampleJob")
     Logger.getRootLogger.setLevel(Level.WARN)
     var dataDF = FileUtils.readParquetData(folderPath, spark)
+    dataDF = dataDF.limit(1000000)
     dataDF = dataDF.select(
       col("_c0").alias("caid"),
       col("_c2").alias("latitude"),
       col("_c3").alias("longitude"),
       col("_c5").alias("utc_timestamp")
     )
-    // dataDF = dataDF.sample(withReplacement = false, fraction = 0.05, seed = 42)
-
-    dataDF = dataLoadFilter.loadFilteredData(spark, dataDF)
+    dataDF = dataLoadFilter.loadFilteredData(spark, dataDF, params)
+    
     dataDF = dataDF.withColumn("utc_timestamp", F.to_timestamp(F.col("utc_timestamp")))
 
     /** Stay Detection */
@@ -59,8 +52,8 @@ class PipeExample extends Logging {
     val (getStays) = StayDetection.getStays(
       dataDF,
       spark,
-      temporal_threshold_1,
-      spatial_threshold
+      params.deltaT,
+      params.spatialThreshold
     )
     // val getStaysCount = getStays.count() This takes too much time to process the count
     // log.info("getStays Count: " + getStaysCount)
@@ -70,10 +63,10 @@ class PipeExample extends Logging {
     // 2 mapToH3
     val (passingResult, stays) = StayDetection.mapToH3(
       getStays,
-      resolution,
-      temporal_threshold_2,
-      passing,
-      speed_threshold
+      params.hexResolution,
+      params.regionalTemporalThreshold,
+      params.passing,
+      params.speedThreshold
     )
     // 38330 stays
     val staysCached = stays.repartition(col("caid")).cache()
@@ -91,44 +84,16 @@ class PipeExample extends Logging {
     
     // 4 mergeH3Region
     val staysH3Region =
-      StayDetection.mergeH3Region(staysJoined, region_temporal_threshold)
+      StayDetection.mergeH3Region(staysJoined, params.regionalTemporalThreshold)
     staysCached.unpersist()
     // staysH3Region.show(10)
     log.info("Writing document")
-    staysH3Region.cache().write
-      .parquet("/data_1/quadrant/output/stays_full.parquet")
+    staysH3Region.write
+      .parquet(outputPath)
+    
   }
-
   def exampleFunction(param: String): String = {
     s"Hello, $param"
-  }
-  def appendNeededColumns(folderPath: String): Unit = {
-    log.info("folder path: " + folderPath)
-    val spark: SparkSession = createSparkSession(runMode, "SampleJob")
-    // var DAY = 0
-    // var SECOND = 3
-    val schema = StructType(Seq(
-      StructField("caid", LongType, nullable = true),
-      StructField("h3_region_stay_id", LongType, nullable = true),
-      StructField("stay_start_timestamp", TimestampType, nullable = true),
-      StructField("stay_end_timestamp", TimestampType, nullable = true),
-      StructField("stay_duration", DayTimeIntervalType(0, 3)	, nullable = true),
-      StructField("h3_id_region", StringType, nullable = true)
-    ))
-
-    var dataDF = spark.read
-      .schema(schema)
-      .parquet(folderPath)
-    
-
-    // val toHexString = udf((index: Long) => java.lang.Long.toHexString(index))
-    var extendDF = dataDF
-      .withColumn("local_time", col("stay_start_timestamp"))
-      .withColumn("h3_index", expr("hex(cast(h3_id_region as bigint))"))
-      .withColumn("day_of_week", dayofweek(col("local_time")))
-      .withColumn("hour_of_day", hour(col("local_time")))
-    extendDF.write
-      .parquet("/data_1/quadrant/output/staysExtent.parquet")
   }
   def getHomeWorkLocation(folderPath: String): Unit = {
     log.info("Creating spark session")

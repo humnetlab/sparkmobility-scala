@@ -19,13 +19,15 @@ object locationType extends Serializable{
     */
     val params = FilterParameters.fromJsonFile("src/main/resources/config/DefaultParameters.json")
 
+    val dayWeekDF = data.withColumn("dayofweek", dayofweek(col("local_time")))
+
     val conditionHome = (
-      (dayofweek(col("local_time")).isin(1, 2, 3, 4, 5) && hour(col("local_time")).between(params.workToHome, 23)) ||
-        (dayofweek(col("local_time")).isin(2, 3, 4, 5, 6) && hour(col("local_time")).between(0, params.homeToWork - 1)) ||
-        (dayofweek(col("local_time")).isin(6, 7))
+      (col("dayofweek").isin(1, 2, 3, 4, 5) && hour(col("local_time")).between(params.workToHome, 23)) ||
+        (col("dayofweek").isin(2, 3, 4, 5, 6) && hour(col("local_time")).between(0, params.homeToWork - 1)) ||
+        (col("dayofweek").isin(6, 7))
       )
 
-    val sleepDF = data.filter(conditionHome)
+    val sleepDF = dayWeekDF.filter(conditionHome).cache()
 
     val h3_Frequency = sleepDF.groupBy("caid", "h3_index")
       .agg(count("h3_index").as("frequency"))
@@ -38,12 +40,12 @@ object locationType extends Serializable{
         col("h3_index").alias("home_h3_index")
       )
 
-    val resultDF = data.join(mostFrequentH3DF, Seq("caid"), "left")
+    val resultDF = data.join(broadcast(mostFrequentH3DF), Seq("caid"), "left")
       .withColumn(
         "type",
         when(col("h3_index") === col("home_h3_index") && conditionHome, 1).otherwise(0)
       )
-
+    sleepDF.unpersist()
     resultDF
   }
 

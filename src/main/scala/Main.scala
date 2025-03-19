@@ -50,7 +50,11 @@ object Main extends Logging{
     //   repartitionParquet(spark, folder.getAbsolutePath)
     // }
     // pipe.getStaysTest("/Users/chris/Documents/quadrant/output/filter_partioned")
-    pipe.appendNeededColumns("/Users/chris/Documents/quadrant/output/stays.parquet")
+    var input: String = "/Users/chris/Documents/quadrant/output/filter_partioned"
+    var output: String = "/Users/chris/Documents/quadrant/output/stays_full.parquet"
+    pipe.getStaysTest(input, output)
+
+    // pipe.appendNeededColumns("/Users/chris/Documents/quadrant/output/stays.parquet")
     // pipe.getHomeWorkLocation("/data_1/quadrant/output/stays.parquet")
   }
 }

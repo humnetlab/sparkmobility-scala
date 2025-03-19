@@ -1,15 +1,18 @@
 {
-    "spark.master": "local[*]",
-    "spark.eventLog.enabled": "true",
-    "spark.eventLog.dir": "data/spark-events",
-    "spark.network.timeout": "12000",
-    "spark.shuffle.compress": "true",
-    "spark.driver.memory": "50g",
-    "spark.executor.memory": "50g",
-    "spark.executor.memoryOverhead": "20g",
-    "spark.sql.files.ignoreCorruptFiles": "true",
-    "spark.memory.offHeap.enabled": "true",
-    "spark.memory.offHeap.size": "50g",
-    "spark.executor.cores": "5",
-    "spark.executor.instances": "10"
-  }
+  "spark.master": "local[14]",               
+  "spark.eventLog.enabled": "true",
+  "spark.eventLog.dir": "data/spark-events",
+  "spark.network.timeout": "12000",
+  "spark.shuffle.compress": "true",
+  "spark.driver.memory": "42g",              
+  "spark.executor.memory": "42g",            
+  "spark.executor.memoryOverhead": "14g",     
+  "spark.sql.files.ignoreCorruptFiles": "true",
+  "spark.memory.offHeap.enabled": "true",    
+  "spark.memory.offHeap.size": "18g",        
+  "spark.executor.cores": "14",             
+  "spark.sql.parquet.compression.codec": "snappy",
+  "spark.sql.parquet.filterPushdown": "true", 
+  "spark.executor.extraJavaOptions": "-XX:+UseG1GC",
+  "spark.local.dir": "data/tmp/"
+}
