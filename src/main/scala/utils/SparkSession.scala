@@ -1,16 +1,3 @@
-// package utils
-
-// import org.apache.spark.sql.SparkSession
-
-// object SparkSessionUtil {
-//     def createSparkSession(appName: String): SparkSession = {
-//         SparkSession.builder()
-//             .appName(appName)
-//             .config("spark.master", "local")
-//             .getOrCreate()
-//     }
-// }
-
 package utils
 
 import org.apache.spark.SparkConf
@@ -70,7 +57,8 @@ object SparkFactory extends Logging {
       }
     }
     // SparkUdfs.registerUDFs()(implicitly(spark))
-    hadoopConfigurations(spark)
+    // hadoopConfigurations(spark)
+    spark
   }
 
 //  def main(args: Array[String]): Unit = {

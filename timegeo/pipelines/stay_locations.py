@@ -1,16 +1,18 @@
 from pyspark.sql import SparkSession
+import os
+from pyspark.sql import SparkSession
 
-#BASIC SETUP
+TIMEGEO_JAR = os.getenv("TIMEGEO_JAR", "./timegeo010.jar")
+
 spark = SparkSession.builder \
-    .appName("Example") \
-    .config("spark.jars", "/Users/chris/Documents/humnetmobility/target/scala-2.13/timegeo010.jar") \
+    .appName("Timegeo") \
+    .config("spark.jars", TIMEGEO_JAR) \
     .getOrCreate()
-
 jvm = spark._jvm
 
 pipe_example_instance = jvm.pipelines.PipeExample()
 
-path = "/data/09.parquet"
+path = "/data_1/quadrant/sample/"
 result_2 = pipe_example_instance.getStaysTest(path)
 
 print("Result:", result_2)

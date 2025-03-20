@@ -7,9 +7,12 @@ import java.nio.file.{Files, Paths}
 import org.apache.spark.internal.Logging
 import org.json4s._
 import org.json4s.native.JsonMethods._
+import org.apache.spark.sql.{SparkSession, DataFrame}
 
 import scala.io.Source
 import scala.reflect.io.Directory
+import org.apache.spark.sql.types.StructType
+
 
 object FileUtils extends Logging {
   
@@ -82,5 +85,41 @@ object FileUtils extends Logging {
     val file = new File(dirPath)
     if(recursive) file.mkdirs()
     else file.mkdir()
+  }
+
+  def readParquetData(fullPath: String, spark: SparkSession): DataFrame = {
+    log.info(s"Reading Parquet data from path: $fullPath")
+
+    val path = new File(fullPath)
+    val dataDF = if (path.isFile) {
+      spark.read
+        .option("inferSchema", "true")
+        .parquet(fullPath)
+    } else {
+      spark.read
+        .option("inferSchema", "true")
+        .parquet(s"$fullPath/*")
+    }
+
+    dataDF
+  }
+
+  def readTextData(fullPath: String, schema: StructType, spark: SparkSession): DataFrame = {
+    log.info(s"Reading Parquet data from path: $fullPath")
+
+    val path = new File(fullPath)
+    val dataDF = if (path.isFile) {
+      spark.read
+        .schema(schema)
+        .option("header", "false")
+        .csv(fullPath)
+    } else {
+      spark.read
+        .schema(schema)
+        .option("header", "false")
+        .csv(s"$fullPath/*")
+    }
+
+    dataDF
   }
 }
