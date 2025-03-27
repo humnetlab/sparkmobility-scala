@@ -29,18 +29,6 @@ object Main extends Logging{
   //   ))
   //   var dataDF = FileUtils.readTextData(path, schema, spark)
 
-  //   dataDF = dataDF
-  //     .withColumn("timestamp_utc", from_unixtime(col("unixtime")/ 1000))
-  //     .withColumn("date", to_date(col("timestamp_utc")))
-  //   val outputPath = s"/Users/chris/Documents/quadrant/output"
-  //   dataDF
-  //     .select("id", "lat", "lon", "timestamp_utc", "date")
-  //     .repartition(col("date"))
-  //     .write
-  //     .mode("overwrite")
-  //     .parquet(outputPath)
-  // }
-
   def main(args: Array[String]): Unit = {
     
     log.info("Creating spark session and running the job")
@@ -54,10 +42,8 @@ object Main extends Logging{
     // }
     // pipe.getStaysTest("/Users/chrigits/Documents/quadrant/output/filter_partioned")
     var input: String = "/data_1/quadrant/output/filter_partioned/day=2022-11-30"
-    var output: String = "/data_1/quadrant/output/stays_full.parquet"
-    pipe.getStays(input, output)
-
-    // pipe.appendNeededColumns("/Users/chris/Documents/quadrant/output/stays.parquet")
-    // pipe.getHomeWorkLocation("/data_1/quadrant/output/stays.parquet")
+    var output: String = "/data_1/quadrant/output/test_stays.parquet"
+    // pipe.getStays(input, output)
+    pipe.getHomeWorkLocation(output, "/data_1/quadrant/output")
   }
 }

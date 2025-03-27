@@ -1,33 +1,31 @@
 package sparkjobs.locations
+
 import com.uber.h3core.H3Core
 import org.apache.spark.sql.{DataFrame}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.expressions.UserDefinedFunction
-import sparkjobs.filtering.FilterParameters
+import sparkjobs.filtering._
+
 
 object locationType extends Serializable{
   object H3CoreSingleton extends Serializable {
     @transient lazy val instance: H3Core = H3Core.newInstance()
   }
-  def homeLocation(data: DataFrame): DataFrame ={
+  def homeLocation(data: DataFrame, params: FilterParametersType): DataFrame ={
     /*
     * Home locations of each user are labelled as type = 1.
     * Weekday night, when user is most likely to be at home, is defined as from 7pm of
     * Sunday to Thursday, to 8am of the following weekday.
     */
-    val params = FilterParameters.fromJsonFile("src/main/resources/config/DefaultParameters.json")
-
-    val dayWeekDF = data.withColumn("dayofweek", dayofweek(col("local_time")))
-
     val conditionHome = (
-      (col("dayofweek").isin(1, 2, 3, 4, 5) && hour(col("local_time")).between(params.workToHome, 23)) ||
-        (col("dayofweek").isin(2, 3, 4, 5, 6) && hour(col("local_time")).between(0, params.homeToWork - 1)) ||
-        (col("dayofweek").isin(6, 7))
+      (col("day_of_week").isin(1, 2, 3, 4, 5) && col("hour_of_day").between(params.workToHome, 23)) ||
+        (col("day_of_week").isin(2, 3, 4, 5, 6) && col("hour_of_day").between(0, params.homeToWork - 1)) ||
+        (col("day_of_week").isin(6, 7))
       )
 
-    val sleepDF = dayWeekDF.filter(conditionHome).cache()
+    val sleepDF = data.filter(conditionHome).cache()
 
     val h3_Frequency = sleepDF.groupBy("caid", "h3_index")
       .agg(count("h3_index").as("frequency"))
@@ -49,7 +47,7 @@ object locationType extends Serializable{
     resultDF
   }
 
-  def workLocation(data: DataFrame): DataFrame ={
+  def workLocation(data: DataFrame, params: FilterParametersType): DataFrame ={
     /*
     * home is the dataframe containing home h3 hexagon of each user, inherited from
     * function homeLocation. Work location should satisfy the following criteria:
@@ -58,10 +56,7 @@ object locationType extends Serializable{
     * 3. n >= 3
     * 4. distance from home > 500m
     * */
-    //val h3 = H3Core.newInstance()
-    val params = FilterParameters.fromJsonFile("src/main/resources/config/DefaultParameters.json")
-
-    val conditionWork = dayofweek(col("local_time")).isin(1, 2, 3, 4, 5) && hour(col("local_time")).between(params.homeToWork, params.workToHome)
+    val conditionWork = col("day_of_week").isin(1, 2, 3, 4, 5) && col("hour_of_day").between(params.homeToWork, params.workToHome)
     val workDF = data.filter(conditionWork)
 
     val workFrequency = workDF.groupBy("caid", "h3_index")
@@ -121,22 +116,5 @@ object locationType extends Serializable{
     updatedData
   }
 
-
-  /*
-  def haversineDistance(lat1: Double, lon1: Double, home_h3: String): Double = {
-
-    val R = 6371000 // Radius of Earth in meters
-    val dLat = Math.toRadians(lat2 - lat1)
-    val dLon = Math.toRadians(lon2 - lon1)
-
-    val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2)
-
-    val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-
-    R * c // Distance in meters
-  }
-  */
 
 }

@@ -7,7 +7,7 @@ class Stays:
                  hexResolution=8, regionalTemporalThreshold=3600, passing=True,
                  startTimestamp="2022-11-01 10:50:30", endTimestamp="2023-02-02 12:20:45",
                  longitude=None, latitude=None, homeToWork=8, workToHome=19,
-                 workDistanceLimit=500, workFreqCountLimit=3, timeZone="America/Mexico_City"):
+                 workDistanceLimit=500, workFreqCountLimit=3, timeZone="America/Mexico_City", columns={}):
         if longitude is None:
             longitude = [-99.3, -98.7]
         if latitude is None:
@@ -28,6 +28,7 @@ class Stays:
         self.workDistanceLimit = workDistanceLimit
         self.workFreqCountLimit = workFreqCountLimit
         self.timeZone = timeZone
+        self.column_names = columns
         self.params_file = self._create_parameters_file("./parameters.json")
 
 
@@ -54,6 +55,13 @@ class Stays:
             json.dump(params, f, indent=4)
         return os.path.abspath(filepath)
     
+    def _create_hashmap(self, spark):
+        # hashmap = spark._jvm.java.util.HashMap()
+        # for key, value in self.column_names.items():
+        #     hashmap.put(key, value)
+        hashmap = spark._jvm.PythonUtils.toScalaMap(self.column_names)
+        return hashmap
+    
     def _get_pipeline_instance(self, spark):
         jvm = spark._jvm
         return jvm.pipelines.PipeExample()
@@ -61,19 +69,15 @@ class Stays:
     @spark_session
     def get_stays(spark, self, input_path, output_path):
         pipeline = self._get_pipeline_instance(spark)
-        pipeline.getStays(input_path, output_path, self.params_file)
+        columnNames = self._create_hashmap(spark)
+        print(type(columnNames))
+        pipeline.getStays(input_path, output_path, columnNames, self.params_file)
         return "stays data based on default parameters"
 
-    def get_home_location(self):
-        # Implement logic to determine home location.
-        return "home location based on default parameters"
+    @spark_session
+    def get_home_work_locations(spark, self, input_path, output_path):
+        pipeline = self._get_pipeline_instance(spark)
+        pipeline.getHomeWorkLocation(input_path, output_path, self.params_file)
+        return "home and work location based on default parameters"
 
-    def get_work_location(self):
-        # Implement logic to determine work location.
-        return "work location based on default parameters"
 
-if __name__ == "__main__":
-    stays_instance = Stays()
-    print("Stays:", stays_instance.get_stays())
-    print("Home Location:", stays_instance.get_home_location())
-    print("Work Location:", stays_instance.get_work_location())
