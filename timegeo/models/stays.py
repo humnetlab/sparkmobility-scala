@@ -31,7 +31,6 @@ class Stays:
         self.column_names = columns
         self.params_file = self._create_parameters_file("./parameters.json")
 
-
     def _create_parameters_file(self, filepath):
         with open(filepath, "w") as f:
             params = {
@@ -79,5 +78,11 @@ class Stays:
         pipeline = self._get_pipeline_instance(spark)
         pipeline.getHomeWorkLocation(input_path, output_path, self.params_file)
         return "home and work location based on default parameters"
+    
+    @spark_session
+    def get_od_matrix(spark, self, input_path, output_path, resolution=8):
+        pipeline = self._get_pipeline_instance(spark)
+        pipeline.getODMatrix(input_path, output_path, resolution)
+        return "od matrix based on default parameters"
 
 

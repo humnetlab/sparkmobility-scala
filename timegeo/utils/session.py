@@ -14,6 +14,7 @@ def create_spark_session():
              .config("spark.executor.memory", f"{config['DEFAULT']['MEMORY']}g")
              .config("spark.driver.memory", f"{config['DEFAULT']['MEMORY']}g")
              .config("spark.sql.files.ignoreCorruptFiles", "true")
+             .config('spark.sql.session.timeZone', 'UTC')
              .getOrCreate())
 
     spark.sparkContext.setLogLevel(config['DEFAULT']['LOG_LEVEL'])

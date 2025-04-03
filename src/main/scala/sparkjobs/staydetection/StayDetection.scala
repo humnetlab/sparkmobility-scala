@@ -1,4 +1,6 @@
 package sparkjobs.staydetection
+import sparkjobs.filtering.FilterParameters._
+import sparkjobs.filtering.FilterParametersType
 
 import com.uber.h3core.H3Core
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -427,7 +429,7 @@ object StayDetection {
       .select(col("list.caid"), col("list.h3_id"), col("region.h3_id_region"))
   }
 
-  def mergeH3Region(df: DataFrame, temporalThreshold: Int = 3600): DataFrame = {
+  def mergeH3Region(df: DataFrame, params: FilterParametersType): DataFrame = {
 
     val windowSpec = Window.partitionBy("caid").orderBy("stay_index_h3")
 
@@ -443,7 +445,7 @@ object StayDetection {
         col("lagged_h3_id_region") =!= col("h3_id_region") ||
         (unix_timestamp(col("h3_stay_start_time")) - unix_timestamp(
           col("prev_h3_stay_end_time")
-        )) > temporalThreshold,
+        )) > params.temporalThreshold,
         1
       ).otherwise(0)
       ).over(windowSpec)
@@ -468,7 +470,7 @@ object StayDetection {
         col("stay_end_timestamp"),
         col("stay_duration"),
         col("h3_id_region"),
-        col("stay_start_timestamp").alias("local_time"),
+        from_utc_timestamp(col("stay_start_timestamp"), params.timeZone).alias("local_time"),
         expr("hex(cast(h3_id_region as bigint))").alias("h3_index"),
         dayofweek(col("stay_start_timestamp")).alias("day_of_week"),
         hour(col("stay_start_timestamp")).alias("hour_of_day")

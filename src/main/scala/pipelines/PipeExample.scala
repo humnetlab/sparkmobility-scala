@@ -8,6 +8,7 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 
+import measures.extractTrips
 import sparkjobs.filtering.dataLoadFilter
 import sparkjobs.filtering.h3Indexer
 import sparkjobs.locations.locationType
@@ -36,7 +37,7 @@ class PipeExample extends Logging {
     val folderPath = s"$fullPath"
 
     log.info("folder path: " + folderPath)
-    val spark: SparkSession = createSparkSession(runMode, "SampleJob")
+    val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     Logger.getRootLogger.setLevel(Level.WARN)
     var dataDF = FileUtils.readParquetData(folderPath, spark)
     // dataDF = dataDF.sample(withReplacement = false, fraction = 0.1, seed = 42)
@@ -51,7 +52,7 @@ class PipeExample extends Logging {
       col("caid"),
       col("latitude"),
       col("longitude"),
-      to_timestamp(col("utc_timestamp")).as("utc_timestamp")
+      col("utc_timestamp")
     )
 
     /** Stay Detection */
@@ -94,7 +95,7 @@ class PipeExample extends Logging {
 
     // 4 mergeH3Region
     val staysH3Region =
-      StayDetection.mergeH3Region(staysJoined, params.regionalTemporalThreshold)
+      StayDetection.mergeH3Region(staysJoined, params)
     getStays.unpersist()
     // staysH3Region.show(10)
     log.info("Writing document")
@@ -112,10 +113,25 @@ class PipeExample extends Logging {
   ): Unit = {
     log.info("Creating spark session")
     val params              = FilterParameters.fromJsonFile(configFile)
-    val spark: SparkSession = createSparkSession(runMode, "SampleJob")
+    val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     var dataDF = spark.read
       .option("inferSchema", "true")
       .parquet(folderPath)
+
+    // small patch remove
+    dataDF = dataDF.select(
+        col("caid"),
+        col("h3_region_stay_id"),
+        col("stay_start_timestamp"),
+        col("stay_end_timestamp"),
+        col("stay_duration"),
+        col("h3_id_region"),
+        from_utc_timestamp(col("local_time"), params.timeZone).alias("local_time"),
+        col("h3_index"),
+        dayofweek(from_utc_timestamp(col("local_time"), params.timeZone)).alias("day_of_week"),
+        hour(from_utc_timestamp(col("local_time"), params.timeZone)).alias("hour_of_day")
+      )
+    //
 
     val homeDF = locationType.homeLocation(dataDF, params)
     val workDF = locationType.workLocation(homeDF, params)
@@ -128,5 +144,17 @@ class PipeExample extends Logging {
     workDF.write
       .mode(SaveMode.Overwrite)
       .parquet(s"$outputPath/work_locations.parquet")
+  }
+  def getODMatrix(
+      folderPath: String,
+      outputPath: String,
+      resolution: Int = 8,
+  ): Unit = {
+    log.info("Creating spark session")
+    val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
+    var dataDF = spark.read
+      .option("inferSchema", "true")
+      .parquet(folderPath)
+    val odMatrix = extractTrips.getHomeWorkMatrix(spark, dataDF, resolution, outputPath)
   }
 }
