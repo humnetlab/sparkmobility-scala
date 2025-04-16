@@ -1,4 +1,6 @@
 package sparkjobs.staydetection
+import sparkjobs.filtering.FilterParameters._
+import sparkjobs.filtering.FilterParametersType
 
 import com.uber.h3core.H3Core
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -14,6 +16,7 @@ object StayDetection {
   val h3 = H3Core.newInstance()
 
   object Haversine {
+    // Output distance in km
     val R = 6372.8 // R, km
 
     def distance(
@@ -39,6 +42,13 @@ object StayDetection {
     // val h3IdHex = java.lang.Long.toHexString(h3IdDecimal)  // Convert to hexadecimal string
     // h3IdHex
   })
+  
+  val haversineDistance =
+    udf((lat1: Double, lon1: Double, lat2: Double, lon2: Double) => {
+      Haversine.distance(lat1, lon1, lat2, lon2)
+    })
+
+
 
   val h3ToGeoUDF = udf((h3Index: Long) => {
     // val h3 = H3Core.newInstance()
@@ -96,27 +106,34 @@ object StayDetection {
       Window.partitionBy("caid").orderBy("utc_timestamp")
 
     // Calculate time lag between consecutive events for each 'caid', time difference (delta_t) between consecutive events
-    val dfWithLag = df
-      .withColumn("lag_timestamp", lag("utc_timestamp", 1).over(windowSpec))
-      .withColumn(
-        "delta_t",
-        unix_timestamp(col("utc_timestamp")) - unix_timestamp(
-          col("lag_timestamp")
-        )
-      )
-      .withColumn(
-        "temporal_stay",
-        when(col("delta_t") > delta_t, 1).otherwise(0)
-      ) // Mark as temporal stay if the time difference exceeds the threshold
+    // val dfWithLag2 = df
+    //   .withColumn("lag_timestamp", lag("utc_timestamp", 1).over(windowSpec))
+    //   .withColumn(
+    //     "delta_t",
+    //     unix_timestamp(col("utc_timestamp")) - unix_timestamp(
+    //       col("lag_timestamp")
+    //     )
+    //   )
+    //   .withColumn(
+    //     "temporal_stay",
+    //     when(col("delta_t") > delta_t, 1).otherwise(0)
+    //   ) // Mark as temporal stay if the time difference exceeds the threshold
 
+    val dfWithLag = df
+      .select(
+        col("*"),
+        (unix_timestamp(col("utc_timestamp")) - unix_timestamp(
+          lag("utc_timestamp", 1).over(windowSpec)
+        )).as("delta_t"),
+        when(col("delta_t") > delta_t, 1).otherwise(0).as("temporal_stay")
+      )
     // Assign a unique stay ID based on the temporal stay
     val dfWithStayId = dfWithLag.withColumn(
       "temporal_stay_id",
       sum("temporal_stay").over(windowSpec)
-    )
-    val dfWithStayIdCached = dfWithStayId.cache()
+    ).cache()
     // Perform a flatMap transformation to apply the sequential stay detection    
-    val resultRDD = dfWithStayIdCached
+    val resultRDD = dfWithStayId
       .groupBy("caid", "temporal_stay_id")
       .agg(collect_list(struct("latitude", "longitude")).alias("group_data"))
       .rdd
@@ -143,10 +160,8 @@ object StayDetection {
 
     // Add join key to the original DataFrame
     val dfWithJoinKey =
-      dfWithStayIdCached.withColumn("join_key", monotonically_increasing_id())
-    // Repartition the listDF using 'caid' 
-    // val repartitionedListDF        = listDF.repartition(col("caid"))
-    // var repartitioneddfWithJoinKey = dfWithJoinKey.repartition(col("caid"))
+      dfWithStayId.withColumn("join_key", monotonically_increasing_id())
+
     // Join the DataFrame with the result DataFrame based on the join key
     val joinedDF = dfWithJoinKey
       .as("df1")
@@ -155,15 +170,14 @@ object StayDetection {
     // Drop duplicate 'caid' column
     val deduplicatedDF = joinedDF.drop(joinedDF.col("df2.caid"))
     // Determine if a location qualifies as a stay based on temporal or distance criteria
-    val dfWithFinalStay = deduplicatedDF.withColumn(
-      "stay",
-      when(col("temporal_stay") === 1 || col("distance_threshold") === 1, 1)
-        .otherwise(0)
-    )
-
-    // Assign a unique stay ID to each stay event
-    val dfWithFinalStayId =
-      dfWithFinalStay.withColumn("stay_id", sum(col("stay")).over(windowSpec))
+    // And assign a unique stay ID to each stay event
+    val dfWithFinalStayId = deduplicatedDF
+      .select(
+        col("*"),
+        sum(when(col("temporal_stay") === 1 || col("distance_threshold") === 1, 1)
+          .otherwise(0)).over(windowSpec)
+          .as("stay_id"),
+      )
 
     // Select the relevant columns and group by stay ID for final aggregation
     val resultDF = dfWithFinalStayId
@@ -175,7 +189,7 @@ object StayDetection {
         mean("longitude").alias("longitude")
       )
     listDF.unpersist()
-    dfWithStayIdCached.unpersist()
+    dfWithStayId.unpersist()
     resultDF
   }
 
@@ -203,11 +217,6 @@ object StayDetection {
 
     regionalStays
   }
-
-  val haversineDistance =
-    udf((lat1: Double, lon1: Double, lat2: Double, lon2: Double) => {
-      Haversine.distance(lat1, lon1, lat2, lon2)
-    })
 
   val checkPassing = udf(
     (
@@ -420,7 +429,7 @@ object StayDetection {
       .select(col("list.caid"), col("list.h3_id"), col("region.h3_id_region"))
   }
 
-  def mergeH3Region(df: DataFrame, temporalThreshold: Int = 3600): DataFrame = {
+  def mergeH3Region(df: DataFrame, params: FilterParametersType): DataFrame = {
 
     val windowSpec = Window.partitionBy("caid").orderBy("stay_index_h3")
 
@@ -436,7 +445,7 @@ object StayDetection {
         col("lagged_h3_id_region") =!= col("h3_id_region") ||
         (unix_timestamp(col("h3_stay_start_time")) - unix_timestamp(
           col("prev_h3_stay_end_time")
-        )) > temporalThreshold,
+        )) > params.temporalThreshold,
         1
       ).otherwise(0)
       ).over(windowSpec)
@@ -461,7 +470,7 @@ object StayDetection {
         col("stay_end_timestamp"),
         col("stay_duration"),
         col("h3_id_region"),
-        col("stay_start_timestamp").alias("local_time"),
+        from_utc_timestamp(col("stay_start_timestamp"), params.timeZone).alias("local_time"),
         expr("hex(cast(h3_id_region as bigint))").alias("h3_index"),
         dayofweek(col("stay_start_timestamp")).alias("day_of_week"),
         hour(col("stay_start_timestamp")).alias("hour_of_day")
