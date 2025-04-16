@@ -56,15 +56,7 @@ Sometimes, the default Scala version is 2.12. Since the project is compatible on
     source ~/.bashrc  # or source ~/.zshrc
     ```
 
-5. **Install the Required Python Packages:**
-    Install the required Python packages using `pip`:
-
-    ```bash
-    source env/bin/activate # activate the virtual environment
-    pip install -r requirements.txt
-    ```
-
-6. **Verify the Scala Version:**
+5. **Verify the Scala Version:**
     Run the following in a Python shell or script:
 
     ```python
@@ -74,65 +66,7 @@ Sometimes, the default Scala version is 2.12. Since the project is compatible on
     ```
     This should output `2.13.x`.
 
-If you are using conda follow this extract steps steps
-1. **Use the Custom Spark Distribution in Conda:**
-    - **Create a Conda Environment:**
-
-      ```bash
-      conda env create -f environment.yml
-      ```
-
-    - **Activate the Conda Environment:**
-
-      ```bash
-      conda activate environment_name
-      ```
-
-    - **Set SPARK_HOME in the Conda Environment:**
-
-      ```bash
-      conda env config vars set SPARK_HOME=/opt/spark/spark-3.5.4-bin-hadoop3-scala2.13
-      ```
-
-    - **Reactivate the Conda Environment:**
-
-      ```bash
-      conda deactivate
-      conda activate environment_name
-      ```
-
-    - **Verify the Scala Version again:**
-
-      ```python
-      from pyspark import SparkContext
-      sc = SparkContext.getOrCreate()
-      print(sc._jvm.scala.util.Properties.versionNumberString())
-      ```
-
-
 ### Using the Project
-
-1. **Activate env**
-    
-    Activate the virtual environment:
-
-    ```bash
-    source env/bin/activate
-    ```
-    or
-    ```bash
-    conda activate environment_name
-    ```
-
-2. **Set environment variable**
-    Set the following environment variable with the path to the jar file:
-
-    ```bash
-    export TIMEGEO_JAR=/path/to/jar/file
-    ```
-
-### Usage
-
 This is a standard sbt project. You can use the following commands:
 
 - Update dependencies: `sbt update`
