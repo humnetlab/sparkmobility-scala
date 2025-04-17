@@ -1,4 +1,4 @@
-from timegeo.models.stays import Stays
+from SparkMob.stays import Stays
 
 def main():
     longitude = [-99.3, -98.7]
