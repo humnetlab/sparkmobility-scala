@@ -29,6 +29,7 @@ class PipeExample extends Logging {
   def getStays(
       fullPath: String,
       outputPath: String,
+      timeFormat: String,
       columnNames: Map[String, String] = Map("_c0" -> "caid", "_c2" -> "latitude", "_c3" -> "longitude", "_c5" -> "utc_timestamp"),
       configFile: String = "src/main/resources/config/DefaultParameters.json"
   ): Unit = {
@@ -46,6 +47,18 @@ class PipeExample extends Logging {
     dataDF = dataDF.select(
       columnNames.map { case (originalCol, aliasCol) => col(originalCol).alias(aliasCol) }.toSeq: _*
     )
+
+    if (timeFormat != "UNIX") {
+      dataDF = dataDF
+        .withColumn(
+          "utc_timestamp",
+          unix_timestamp(col("utc_timestamp"), timeFormat) // convert timestamp to Unix time
+        )
+    }
+    dataDF = dataDF
+      .withColumn("latitude", col("latitude").cast(DoubleType))
+      .withColumn("longitude", col("longitude").cast(DoubleType))
+
     dataDF = dataLoadFilter.loadFilteredData(spark, dataDF, params)
 
     dataDF = dataDF.select(
@@ -100,6 +113,7 @@ class PipeExample extends Logging {
     // staysH3Region.show(10)
     log.info("Writing document")
     staysH3Region.write
+      .mode("overwrite")
       .parquet(outputPath)
 
   }
