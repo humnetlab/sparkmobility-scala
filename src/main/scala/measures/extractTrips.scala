@@ -38,26 +38,48 @@ object extractTrips {
       "distance",
       distanceUDF(col("h3_index"), col("next_h3_index"))
     )
+    val h3 = H3Core.newInstance()
+    val h3ToParentUDF = udf((h3Index: String) => {
+      if (h3Index == null) {
+        null // Return null if the input h3Index is null
+      } else {
+        val h3 = H3CoreSingleton.instance
+        h3.cellToParentAddress(h3Index, resolution)
+      }
+    })
 
     val result = dataWithDistance
       .select(
         col("caid"),
         col("h3_index").alias("origin"),
         col("next_h3_index").alias("destination"),
+        col("home_h3_index").alias("home"),
+        col("work_h3_index").alias("work"),
+        col("hour_of_day"),
         col("distance")
       )
       .filter(col("distance") =!= 0.0)
+      .withColumn( // Add the new column here
+        "is_home_work_trip",
+        (col("origin") === col("home") && col("destination") === col("work")) ||
+          (col("origin") === col("work") && col("destination") === col("home"))
+      )
+      .withColumn( // (b) home-based other trips
+        "is_home_other_trip",
+        (col("origin") === col("home") || col("destination") === col("home")) &&
+        !((col("origin") === col("home") && col("destination") === col("work")) ||
+          (col("origin") === col("work") && col("destination") === col("home")))
+      ).withColumn( // (c) non-home based trips
+        "is_non_home_trip",
+        col("origin") =!= col("home") && col("destination") =!= col("home")
+      )
 
     // Get the OD matrix
-    val h3 = H3Core.newInstance()
-    val h3ToParentUDF = udf((h3Index: String) => {
-      val h3 = H3CoreSingleton.instance
-
-      h3.cellToParentAddress(h3Index, resolution)
-    })
     val resultWithParent = result
       .withColumn("parent_origin", h3ToParentUDF(col("origin")))
       .withColumn("parent_destination", h3ToParentUDF(col("destination")))
+      .withColumn("parent_home", h3ToParentUDF(col("home")))
+      .withColumn("parent_work", h3ToParentUDF(col("work"))).cache()
 
     val odCount = resultWithParent
       .groupBy("parent_origin", "parent_destination")
@@ -69,13 +91,13 @@ object extractTrips {
     )
 
     val tripName = "/trips.parquet"
-    val ODName   = "/OD-Matrix.parquet"
+    val ODName   = "/Full_OD_Matrix.parquet"
 
-    result.write
+    resultWithParent.write
       .mode("overwrite")
       .format("parquet")
       .save(outputPath + tripName)
-
+    resultWithParent.unpersist()
     odCountDistance.write
       .mode("overwrite")
       .format("parquet")
@@ -89,9 +111,13 @@ object extractTrips {
   ): Unit = {
     val h3 = H3Core.newInstance()
     val h3ToParentUDF = udf((h3Index: String) => {
-        val h3 = H3CoreSingleton.instance
+        if (h3Index == null) {
+          null // Return null if the input h3Index is null
+        } else {
+          val h3 = H3CoreSingleton.instance
 
-        h3.cellToParentAddress(h3Index, resolution)
+          h3.cellToParentAddress(h3Index, resolution)
+        }
     })
     val distanceUDF = udf[Double, String, String](H3DistanceUtils.distance)
 

@@ -6,7 +6,7 @@ import org.apache.spark.sql.functions._
 
 
 object stayDurationDistribution {
-  def duration(spark: SparkSession, data: DataFrame): DataFrame ={
+  def duration(spark: SparkSession, data: DataFrame, outputPath:String): DataFrame ={
     val hoursDF = data.withColumn(
       "interval_hours", col("stay_duration") / 3600
     ).select("caid", "interval_hours")
@@ -23,9 +23,6 @@ object stayDurationDistribution {
       .orderBy("range")
       .withColumn("probability", col("count") / hoursDF.count())
 
-    val curDir = System.getProperty("user.dir")
-    val relPath = "/data/intermediateResults/stayDurationDistribution"
-    val outputPath = curDir + relPath
     resultDF.write
       .mode("overwrite") // Overwrites existing data at the output path
       .format("parquet")

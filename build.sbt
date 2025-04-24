@@ -11,7 +11,7 @@ lazy val root = (project in file("."))
   .settings(
     // assemblyPackageScala / assembleArtifact := false,
     // assemblyPackageDependency / assembleArtifact := false,
-    assembly / mainClass := Some("pipelines.PipeExample"),
+    assembly / mainClass := Some("pipelines.Pipelines"),
     name                 := "timegeo_1",
     libraryDependencies ++= Seq(
       "org.scala-lang"    % "scala-library" % scalaVersion.value,

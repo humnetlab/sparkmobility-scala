@@ -1,3 +1,19 @@
+/**
+ * Implements data processing pipelines for mobility data analysis.
+ * 
+ * This class provides methods to process spatiotemporal data to identify stays,
+ * extract home and work locations, and generate origin-destination matrices.
+ * It leverages Spark for distributed processing of potentially large datasets.
+ * 
+ * The pipelines implemented include:
+ * - Stay detection from raw mobility data
+ * - Identification of home and work locations
+ * - Origin-destination matrix calculation between home and work locations
+ * - Full origin-destination matrix calculation for all locations
+ * 
+ * All methods utilize Apache Spark and rely on configuration parameters that can be
+ * supplied through JSON configuration files.
+ */
 package pipelines
 
 import org.apache.log4j.{Level, Logger}
@@ -9,6 +25,9 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 
 import measures.extractTrips
+import measures.dailyVisitedLocation
+import measures.locationDistribution
+import measures.stayDurationDistribution
 import sparkjobs.filtering.dataLoadFilter
 import sparkjobs.filtering.h3Indexer
 import sparkjobs.locations.locationType
@@ -22,7 +41,7 @@ import utils.TestUtils.runModeFromEnv
 import utils.FileUtils
 import scala.annotation.meta.param
 
-class PipeExample extends Logging {
+class Pipelines extends Logging {
   // Class implementation goes here
   val runMode: RunMode = runModeFromEnv()
 
@@ -118,6 +137,7 @@ class PipeExample extends Logging {
 
   }
   def exampleFunction(param: String): String = {
+    // Example function implementation, functions as test
     s"Hello, $param"
   }
   def getHomeWorkLocation(
@@ -128,6 +148,7 @@ class PipeExample extends Logging {
     log.info("Creating spark session")
     val params              = FilterParameters.fromJsonFile(configFile)
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
+    Logger.getRootLogger.setLevel(Level.WARN)
     var dataDF = spark.read
       .option("inferSchema", "true")
       .parquet(folderPath)
@@ -170,5 +191,64 @@ class PipeExample extends Logging {
       .option("inferSchema", "true")
       .parquet(folderPath)
     val odMatrix = extractTrips.getHomeWorkMatrix(spark, dataDF, resolution, outputPath)
+  }
+  
+  def getFullODMatrix(
+      folderPath: String,
+      outputPath: String,
+      resolution: Int = 8,
+  ): Unit = {
+    /**
+   * Generates a full origin-destination (OD) matrix from parquet data.
+   *
+   * This function reads parquet data from the specified folder, processes it to extract
+   * trip information, and creates an origin-destination matrix at the specified resolution.
+   * The resulting OD matrix is saved to the given output path.
+   *
+   * @param folderPath The path to the folder containing input parquet data files
+   * @param outputPath The path where the generated OD matrix and full trips will be saved
+   * @param resolution The spatial resolution for the OD matrix, default is 8
+   */
+    
+    log.info("Creating spark session")
+    val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
+    Logger.getRootLogger.setLevel(Level.WARN)
+    var dataDF = spark.read
+      .option("inferSchema", "true")
+      .parquet(folderPath)
+    val odMatrix = extractTrips.getODMatrix(spark, dataDF, resolution, outputPath)
+  }
+  def getDailyVisitedLocation(folderPath: String, outputPath: String){
+    log.info("Creating spark session")
+    val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
+    var dataDF = spark.read
+      .option("inferSchema", "true")
+      .parquet(folderPath)
+    dailyVisitedLocation.visit(spark, dataDF, outputPath)
+  }
+  def getLocationDistribution(folderPath: String, outputPath: String){
+    log.info("Creating spark session")
+    val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
+    var dataDF = spark.read
+      .option("inferSchema", "true")
+      .parquet(folderPath)
+    locationDistribution.locate(spark, dataDF, outputPath)
+  }
+  def getStayDurationDistribution(folderPath: String, outputPath: String){
+    /**
+     * Computes the distribution of stay durations from mobility data and saves the results.
+     *
+     * This function reads mobility data from a Parquet file, processes it to calculate
+     * the distribution of stay durations, and saves the results to the specified output path.
+     *
+     * @param folderPath The path to the folder containing Parquet files with mobility data
+     * @param outputPath The path where the stay duration distribution results will be saved
+     */
+    log.info("Creating spark session")
+    val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
+    var dataDF = spark.read
+      .option("inferSchema", "true")
+      .parquet(folderPath)
+    stayDurationDistribution.duration(spark, dataDF, outputPath)
   }
 }
