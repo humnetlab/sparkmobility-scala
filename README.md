@@ -57,14 +57,14 @@ Sometimes, the default Scala version is 2.12. Since the project is compatible on
     ```
 
 5. **Verify the Scala Version:**
-    Run the following in a Python shell or script:
+    Run the following command to verify the Scala version:
 
-    ```python
-    from pyspark import SparkContext
-    sc = SparkContext.getOrCreate()
-    print(sc._jvm.scala.util.Properties.versionNumberString())
-    ```
-    This should output `2.13.x`.
+     ```bash
+     spark-shell --version
+     ```
+     
+     This will display information including the Scala version. Ensure it shows `Scala version: 2.13.x`.
+
 
 ### Using the Project
 This is a standard sbt project. You can use the following commands:
@@ -80,13 +80,35 @@ The scala code is located in the `src/main/scala` directory. You can modify the 
 Once edited you must follow the steps below to compile and package the code.
 
 ```
-sbt update
 sbt compile
 sbt assembly
 ```
-This process creates a .jar file that should be submitted to the Spark cluster. Ideally, place it in the root directory of this project.
+This process creates a .jar file(Usually under target/scala-2.13/ dir) that should be submitted to the Spark cluster. 
 
-Then you can replace the path to the jar file in the `spark-submit` command in the `run.sh` file.
+### Running the Project
+To run the project, you can use the following command:
+
+```bash
+
+spark-submit \
+  --class com.timegeo.Main \
+  --master  <your_master_url> \ # e.g., local[*], yarn
+  --driver-memory <MEMORY>g \
+  --executor-memory <MEMORY>g \
+  --conf "spark.driver.extraJavaOptions=-Dlog4j.rootLogger=WARN,console" \
+  --conf "spark.executor.extraJavaOptions=-Dlog4j.rootLogger=WARN,console" \
+  /path/to/your/application.jar
+  ```
 
 For more information on sbt, visit the [official sbt documentation](https://www.scala-sbt.org/1.x/docs/).
 
+## License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Authors
+- **Albert Cao** ([@caoalbert](https://github.com/caoalbert))
+- **Christopher Chávez** ([@Vanchristoph3r](https://github.com/Vanchristoph3r))
+- **Mingyi He** ([@Hemy17](https://github.com/Hemy17))
+- **Wolin Jiang** ([@LowenJiang](https://github.com/LowenJiang))
+- **Giuseppe Perona** ([@g-perona](https://github.com/g-perona))
+- **Jiaman Wu** ([@charmainewu](https://github.com/charmainewu))
