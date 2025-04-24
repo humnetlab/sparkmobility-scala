@@ -11,7 +11,7 @@ import utils.RunMode.RunMode
 import utils.TestUtils.runModeFromEnv
 import org.apache.spark.internal.Logging
 import utils.SparkFactory._
-import pipelines.PipeExample
+import pipelines.Pipelines
 import utils.FileUtils
 import java.io.File
 
@@ -32,7 +32,7 @@ object Main extends Logging{
   def main(args: Array[String]): Unit = {
     
     log.info("Creating spark session and running the job")
-    var pipe = new PipeExample()
+    var pipe = new Pipelines()
 
     // val basePath = "/Users/chris/Documents/quadrant/sample/"
     // val folders = new File(basePath).listFiles.filter(_.isDirectory)
@@ -40,10 +40,10 @@ object Main extends Logging{
     // folders.foreach { folder =>
     //   repartitionParquet(spark, folder.getAbsolutePath)
     // }
-    // pipe.getStaysTest("/Users/chrigits/Documents/quadrant/output/filter_partioned")
-    var input: String = "/data_1/quadrant/output/filter_partioned/day=2022-11-30"
-    var output: String = "/data_1/quadrant/output/test_stays.parquet"
+    var input: String = "/data_1/quadrant/output/output_fixed_timezones/work_locations.parquet"
+    var output: String = "data_1/quadrant/output/output_fixed_timezones"
     // pipe.getStays(input, output)
-    pipe.getHomeWorkLocation(output, "/data_1/quadrant/output")
+    // pipe.getHomeWorkLocation(output, "/data_1/quadrant/output")
+    pipe.getFullODMatrix(input, output, 8)
   }
 }
