@@ -472,8 +472,8 @@ object StayDetection {
         col("h3_id_region"),
         from_utc_timestamp(col("stay_start_timestamp"), params.timeZone).alias("local_time"),
         expr("hex(cast(h3_id_region as bigint))").alias("h3_index"),
-        dayofweek(col("stay_start_timestamp")).alias("day_of_week"),
-        hour(col("stay_start_timestamp")).alias("hour_of_day")
+        dayofweek(col("local_time")).alias("day_of_week"),
+        hour(col("local_time")).alias("hour_of_day")
       )
 
     result
