@@ -49,6 +49,9 @@ class Pipelines extends Logging {
       fullPath: String,
       outputPath: String,
       timeFormat: String,
+      inputFormat: String,
+      delim: String,
+      ifHeader: String, 
       columnNames: Map[String, String] = Map("_c0" -> "caid", "_c2" -> "latitude", "_c3" -> "longitude", "_c5" -> "utc_timestamp"),
       configFile: String = "src/main/resources/config/DefaultParameters.json"
   ): Unit = {
@@ -59,7 +62,16 @@ class Pipelines extends Logging {
     log.info("folder path: " + folderPath)
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     Logger.getRootLogger.setLevel(Level.WARN)
-    var dataDF = FileUtils.readParquetData(folderPath, spark)
+    var dataDF = if (inputFormat == "parquet") {
+        FileUtils.readParquetData(folderPath, spark)
+    } else if (inputFormat == "csv") {
+        FileUtils.readCSVData(folderPath, delim, ifHeader, spark)
+    } else {
+        throw new IllegalArgumentException("Unsupported input format")
+    }
+    
+    // var dataDF = FileUtils.readParquetData(folderPath, spark)
+    // var dataDF = FileUtils.readCSVData(folderPath, spark)
     // dataDF = dataDF.sample(withReplacement = false, fraction = 0.1, seed = 42)
 
     // Rename columns using the columnNames map

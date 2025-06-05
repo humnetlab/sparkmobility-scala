@@ -445,7 +445,7 @@ object StayDetection {
         col("lagged_h3_id_region") =!= col("h3_id_region") ||
         (unix_timestamp(col("h3_stay_start_time")) - unix_timestamp(
           col("prev_h3_stay_end_time")
-        )) > params.temporalThreshold,
+        )) > params.regionalTemporalThreshold,
         1
       ).otherwise(0)
       ).over(windowSpec)

@@ -104,6 +104,25 @@ object FileUtils extends Logging {
     dataDF
   }
 
+  def readCSVData(fullPath: String, delim: String, ifHeader: String, spark: SparkSession): DataFrame = {
+    log.info(s"Reading Parquet data from path: $fullPath")
+
+    val path = new File(fullPath)
+    val dataDF = if (path.isFile) {
+      spark.read
+        .option("inferSchema", "true")
+        .csv(fullPath)
+    } else {
+      spark.read
+        .option("inferSchema", "true")
+        .option("sep", delim)
+        .option("header", ifHeader)
+        .csv(s"$fullPath/*.gz")
+    }
+
+    dataDF
+  }
+
   def readTextData(fullPath: String, schema: StructType, spark: SparkSession): DataFrame = {
     log.info(s"Reading Parquet data from path: $fullPath")
 
