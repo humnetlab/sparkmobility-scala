@@ -183,14 +183,14 @@ class Pipelines extends Logging {
     val homeDF = locationType.homeLocation(dataDF, params)
     val workDF = locationType.workLocation(homeDF, params)
 
-    log.info("Writing Home document")
-    homeDF.write
-      .mode(SaveMode.Overwrite)
-      .parquet(s"$outputPath/home_locations.parquet")
-    log.info("Writing Work document")
+    // log.info("Writing Home document")
+    // homeDF.write
+    //   .mode(SaveMode.Overwrite)
+    //   .parquet(s"$outputPath/home_locations.parquet")
+    log.info("Writing home and work labeled stays")
     workDF.write
       .mode(SaveMode.Overwrite)
-      .parquet(s"$outputPath/work_locations.parquet")
+      .parquet(s"$outputPath")
   }
   def getODMatrix(
       folderPath: String,
@@ -199,9 +199,7 @@ class Pipelines extends Logging {
   ): Unit = {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
-    var dataDF = spark.read
-      .option("inferSchema", "true")
-      .parquet(folderPath)
+    var dataDF = FileUtils.readParquetData(folderPath, spark)
     val odMatrix = extractTrips.getHomeWorkMatrix(spark, dataDF, resolution, outputPath)
   }
   
@@ -225,9 +223,7 @@ class Pipelines extends Logging {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     Logger.getRootLogger.setLevel(Level.WARN)
-    var dataDF = spark.read
-      .option("inferSchema", "true")
-      .parquet(folderPath)
+    var dataDF = FileUtils.readParquetData(folderPath, spark)
     val odMatrix = extractTrips.getODMatrix(spark, dataDF, resolution, outputPath)
   }
   def getDailyVisitedLocation(folderPath: String, outputPath: String){

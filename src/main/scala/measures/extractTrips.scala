@@ -152,12 +152,10 @@ object extractTrips {
       distanceUDF(col("origin"), col("destination"))
     )
 
-    val ODName = "/HW_OD_Matrix.parquet"
-
     odDistance.write
       .mode("overwrite")
       .format("parquet")
-      .save(outputPath + ODName)
+      .save(outputPath)
 
   }
 }
