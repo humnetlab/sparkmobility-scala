@@ -2,15 +2,23 @@ package measures
 
 import org.apache.spark.sql.functions.{col, regexp_extract, sec}
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.functions._
 
 
 object stayDurationDistribution {
-  def duration(spark: SparkSession, data: DataFrame, outputPath:String): DataFrame ={
-    val hoursDF = data.withColumn(
-      "interval_hours", col("stay_duration") / 3600
-    ).select("caid", "interval_hours")
-
+  def duration(spark: SparkSession, data: DataFrame, outputPath: String): DataFrame ={
+    val hoursDF = data
+      .withColumn("stay_duration_in_seconds",
+        unix_timestamp(col("stay_end_timestamp")) - unix_timestamp(col("stay_start_timestamp"))
+      )
+      .withColumn("interval_hours", 
+        col("stay_duration_in_seconds") / 3600
+      ) // Convert seconds to hours
+      .select(
+        col("caid"),
+        col("interval_hours")
+      )
 
     val binSize = 1.0 //hour
 
@@ -23,11 +31,6 @@ object stayDurationDistribution {
       .orderBy("range")
       .withColumn("probability", col("count") / hoursDF.count())
 
-    resultDF.write
-      .mode("overwrite") // Overwrites existing data at the output path
-      .format("parquet")
-      .save(outputPath)
-    resultDF.show()
     resultDF
   }
 }

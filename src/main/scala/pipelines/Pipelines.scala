@@ -195,7 +195,7 @@ class Pipelines extends Logging {
   def getODMatrix(
       folderPath: String,
       outputPath: String,
-      resolution: Int = 8,
+      resolution: Int,
   ): Unit = {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
@@ -206,7 +206,7 @@ class Pipelines extends Logging {
   def getFullODMatrix(
       folderPath: String,
       outputPath: String,
-      resolution: Int = 8,
+      resolution: Int,
   ): Unit = {
     /**
    * Generates a full origin-destination (OD) matrix from parquet data.
@@ -217,7 +217,7 @@ class Pipelines extends Logging {
    *
    * @param folderPath The path to the folder containing input parquet data files
    * @param outputPath The path where the generated OD matrix and full trips will be saved
-   * @param resolution The spatial resolution for the OD matrix, default is 8
+   * @param resolution The spatial resolution for the OD matrix
    */
     
     log.info("Creating spark session")
@@ -226,6 +226,7 @@ class Pipelines extends Logging {
     var dataDF = FileUtils.readParquetData(folderPath, spark)
     val odMatrix = extractTrips.getODMatrix(spark, dataDF, resolution, outputPath)
   }
+
   def getDailyVisitedLocation(folderPath: String, outputPath: String){
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
@@ -243,20 +244,12 @@ class Pipelines extends Logging {
     locationDistribution.locate(spark, dataDF, outputPath)
   }
   def getStayDurationDistribution(folderPath: String, outputPath: String){
-    /**
-     * Computes the distribution of stay durations from mobility data and saves the results.
-     *
-     * This function reads mobility data from a Parquet file, processes it to calculate
-     * the distribution of stay durations, and saves the results to the specified output path.
-     *
-     * @param folderPath The path to the folder containing Parquet files with mobility data
-     * @param outputPath The path where the stay duration distribution results will be saved
-     */
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
-    var dataDF = spark.read
-      .option("inferSchema", "true")
-      .parquet(folderPath)
-    stayDurationDistribution.duration(spark, dataDF, outputPath)
+    var dataDF = FileUtils.readParquetData(folderPath, spark)
+    val resultDF = stayDurationDistribution.duration(spark, dataDF, outputPath)
+    resultDF.write
+      .mode(SaveMode.Overwrite)
+      .parquet(outputPath)
   }
 }
