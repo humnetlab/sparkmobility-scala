@@ -230,18 +230,20 @@ class Pipelines extends Logging {
   def getDailyVisitedLocation(folderPath: String, outputPath: String){
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
-    var dataDF = spark.read
-      .option("inferSchema", "true")
-      .parquet(folderPath)
-    dailyVisitedLocation.visit(spark, dataDF, outputPath)
+    var dataDF = FileUtils.readParquetData(folderPath, spark)
+    val resultDF = dailyVisitedLocation.visit(spark, dataDF, outputPath)
+    resultDF.write
+      .mode(SaveMode.Overwrite)
+      .parquet(outputPath)
   }
   def getLocationDistribution(folderPath: String, outputPath: String){
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
-    var dataDF = spark.read
-      .option("inferSchema", "true")
-      .parquet(folderPath)
-    locationDistribution.locate(spark, dataDF, outputPath)
+    var dataDF = FileUtils.readParquetData(folderPath, spark)
+    val resultDF = locationDistribution.locate(spark, dataDF, outputPath)
+    resultDF.write
+      .mode(SaveMode.Overwrite)
+      .parquet(outputPath)
   }
   def getStayDurationDistribution(folderPath: String, outputPath: String){
     log.info("Creating spark session")

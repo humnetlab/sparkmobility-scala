@@ -10,10 +10,6 @@ object locationDistribution {
         first("work_h3_index").as("work_index"),
       )
     // Write the DataFrame in Parquet format
-    location.write
-      .mode("overwrite") // Overwrites existing data at the output path
-      .format("parquet")
-      .save(outputPath)
     location
   }
 }

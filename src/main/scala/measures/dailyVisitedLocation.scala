@@ -1,5 +1,4 @@
 package measures
-
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
@@ -11,12 +10,6 @@ object dailyVisitedLocation {
       .agg(countDistinct("h3_index").alias("locations"))
 
     val countVisits = visits.groupBy("locations").count()
-
-    countVisits.write
-      .mode("overwrite")
-      .format("parquet")
-      .save(outputPath)
-
-    visits
+    countVisits
   }
 }
