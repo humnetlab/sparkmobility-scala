@@ -240,7 +240,7 @@ class Pipelines extends Logging {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     var dataDF = FileUtils.readParquetData(folderPath, spark)
-    val resultDF = locationDistribution.locate(spark, dataDF, outputPath)
+    val resultDF = locationDistribution.locate(spark, dataDF)
     resultDF.write
       .mode(SaveMode.Overwrite)
       .parquet(outputPath)
