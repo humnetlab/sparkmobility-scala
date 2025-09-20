@@ -87,8 +87,13 @@ class Pipelines extends Logging {
         )
     }
     dataDF = dataDF
-      .withColumn("latitude", col("latitude").cast(DoubleType))
+      .na.drop(Seq("latitude","longitude","utc_timestamp"))
+      .withColumn("latitude",  col("latitude").cast(DoubleType))
       .withColumn("longitude", col("longitude").cast(DoubleType))
+      .withColumn("utc_epoch_s", col("utc_timestamp").cast(LongType))
+      .withColumn("utc_timestamp", to_timestamp(from_unixtime(col("utc_epoch_s")))) // TimestampType (UTC)
+      .drop("utc_epoch_s")
+
 
     dataDF = dataLoadFilter.loadFilteredData(spark, dataDF, params)
 
@@ -167,18 +172,17 @@ class Pipelines extends Logging {
 
     // small patch remove
     dataDF = dataDF.select(
-        col("caid"),
-        col("h3_region_stay_id"),
-        col("stay_start_timestamp"),
-        col("stay_end_timestamp"),
-        col("stay_duration"),
-        col("h3_id_region"),
-        from_utc_timestamp(col("local_time"), params.timeZone).alias("local_time"),
-        col("h3_index"),
-        dayofweek(from_utc_timestamp(col("local_time"), params.timeZone)).alias("day_of_week"),
-        hour(from_utc_timestamp(col("local_time"), params.timeZone)).alias("hour_of_day")
-      )
-    //
+      col("caid"),
+      col("h3_region_stay_id"),
+      col("stay_start_timestamp"),
+      col("stay_end_timestamp"),
+      col("stay_duration"),
+      col("h3_id_region"),
+      col("local_time"),                  // already local
+      col("h3_index"),
+      dayofweek(col("local_time")).as("day_of_week"),
+      hour(col("local_time")).as("hour_of_day")
+    )
 
     val homeDF = locationType.homeLocation(dataDF, params)
     val workDF = locationType.workLocation(homeDF, params)

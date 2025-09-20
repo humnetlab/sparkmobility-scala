@@ -451,9 +451,6 @@ object StayDetection {
       ).over(windowSpec)
     ).cache()
 
-
-
-    // aggregate regional stays info
     val result = dfWithLag
       .groupBy("caid", "h3_region_stay_id")
       .agg(
@@ -463,20 +460,34 @@ object StayDetection {
           .alias("stay_duration"),
         first("h3_id_region").alias("h3_id_region")
       )
-      .select(
-        col("caid"),
-        col("h3_region_stay_id"),
-        col("stay_start_timestamp"),
-        col("stay_end_timestamp"),
-        col("stay_duration"),
-        col("h3_id_region"),
-        from_utc_timestamp(col("stay_start_timestamp"), params.timeZone).alias("local_time"),
-        expr("hex(cast(h3_id_region as bigint))").alias("h3_index"),
-        dayofweek(col("local_time")).alias("day_of_week"),
-        hour(col("local_time")).alias("hour_of_day")
-      )
 
-    result
+    // aggregate regional stays info
+    // 1) Ensure we have proper UTC TimestampType columns
+    val withUtc = result
+      .withColumn("stay_start_ts_utc", col("stay_start_timestamp").cast("timestamp"))
+      .withColumn("stay_end_ts_utc",   col("stay_end_timestamp").cast("timestamp"))
+
+    // 2) Convert UTC → local (IANA zone like "America/Los_Angeles")
+    val withLocal = withUtc
+      .withColumn("local_time", from_utc_timestamp(col("stay_start_ts_utc"), params.timeZone))
+      .withColumn("day_of_week", dayofweek(col("local_time")))
+      .withColumn("hour_of_day", hour(col("local_time")))
+
+    // 3) Final projection
+    val finalOut = withLocal.select(
+      col("caid"),
+      col("h3_region_stay_id"),
+      col("stay_start_timestamp"),
+      col("stay_end_timestamp"),
+      col("stay_duration"),
+      col("h3_id_region"),
+      col("local_time"),
+      expr("hex(cast(h3_id_region as bigint))").as("h3_index"),
+      col("day_of_week"),
+      col("hour_of_day")
+    )
+
+    finalOut
   }
 
 }
