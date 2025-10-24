@@ -28,6 +28,7 @@ import measures.extractTrips
 import measures.dailyVisitedLocation
 import measures.locationDistribution
 import measures.stayDurationDistribution
+import measures.departureTimeDistribution
 import sparkjobs.filtering.dataLoadFilter
 import sparkjobs.filtering.h3Indexer
 import sparkjobs.locations.locationType
@@ -235,7 +236,7 @@ class Pipelines extends Logging {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     var dataDF = FileUtils.readParquetData(folderPath, spark)
-    val resultDF = dailyVisitedLocation.visit(spark, dataDF, outputPath)
+    val resultDF = dailyVisitedLocation.visit(spark, dataDF)
     resultDF.write
       .mode(SaveMode.Overwrite)
       .parquet(outputPath)
@@ -244,7 +245,7 @@ class Pipelines extends Logging {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     var dataDF = FileUtils.readParquetData(folderPath, spark)
-    val resultDF = locationDistribution.locate(spark, dataDF, outputPath)
+    val resultDF = locationDistribution.locate(spark, dataDF)
     resultDF.write
       .mode(SaveMode.Overwrite)
       .parquet(outputPath)
@@ -253,7 +254,16 @@ class Pipelines extends Logging {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     var dataDF = FileUtils.readParquetData(folderPath, spark)
-    val resultDF = stayDurationDistribution.duration(spark, dataDF, outputPath)
+    val resultDF = stayDurationDistribution.duration(spark, dataDF)
+    resultDF.write
+      .mode(SaveMode.Overwrite)
+      .parquet(outputPath)
+  }
+  def getDepartureTimeDistribution(folderPath: String, outputPath: String){
+    log.info("Creating spark session")
+    val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
+    var dataDF = FileUtils.readParquetData(folderPath, spark)
+    val resultDF = departureTimeDistribution.departureTime(spark, dataDF)
     resultDF.write
       .mode(SaveMode.Overwrite)
       .parquet(outputPath)

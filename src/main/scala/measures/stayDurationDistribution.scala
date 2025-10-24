@@ -7,7 +7,7 @@ import org.apache.spark.sql.functions._
 
 
 object stayDurationDistribution {
-  def duration(spark: SparkSession, data: DataFrame, outputPath: String): DataFrame ={
+  def duration(spark: SparkSession, data: DataFrame): DataFrame ={
     val hoursDF = data
       .withColumn("stay_duration_in_seconds",
         unix_timestamp(col("stay_end_timestamp")) - unix_timestamp(col("stay_start_timestamp"))
