@@ -1,24 +1,8 @@
 package com.timegeo
-
-import org.apache.spark
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types._
-import com.uber.h3core.H3Core
-import measures.{
-  dailyVisitedLocation,
-  extractTrips,
-  locationDistribution,
-  stayDurationDistribution
-}
-import utils.RunMode
+import org.apache.spark.internal.Logging
+import pipelines.Pipelines
 import utils.RunMode.RunMode
 import utils.TestUtils.runModeFromEnv
-import org.apache.spark.internal.Logging
-import utils.SparkFactory._
-import pipelines.Pipelines
-import utils.FileUtils
-import java.io.File
 
 object Main extends Logging {
   val runMode: RunMode = runModeFromEnv()

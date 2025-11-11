@@ -1,15 +1,12 @@
-package sparkjobs.staydetection
-import sparkjobs.filtering.FilterParameters._
+package sparkjobs.staydetectionimport
+com.uber.h3core.H3Core
+import org.apache.spark.sql.expressions.{Window, WindowSpec}
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import sparkjobs.filtering.FilterParametersType
 
-import com.uber.h3core.H3Core
-import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.expressions.Window
-import org.apache.spark.sql.expressions.WindowSpec
-import org.apache.spark.sql.functions._
-import scala.util.Try
 import scala.jdk.CollectionConverters._
-import org.apache.spark.sql.Row
+import scala.util.Try
 
 object StayDetection {
 
@@ -390,7 +387,7 @@ object StayDetection {
         }
         result += h3LookupDict(h3_id)
       } catch {
-        case e: NumberFormatException =>
+        case _: NumberFormatException =>
           println(s"Failed to parse H3 index: $h3_id")
       }
     }

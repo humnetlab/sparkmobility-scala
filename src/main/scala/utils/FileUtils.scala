@@ -1,16 +1,15 @@
 package utils
 
-import java.io.{File, FileWriter, InputStream}
-import java.nio.file.{Files, Paths}
-
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.json4s._
 import org.json4s.native.JsonMethods._
-import org.apache.spark.sql.{SparkSession, DataFrame}
 
+import java.io.{File, FileWriter, InputStream}
+import java.nio.file.{Files, Paths}
 import scala.io.Source
 import scala.reflect.io.Directory
-import org.apache.spark.sql.types.StructType
 
 object FileUtils extends Logging {
 

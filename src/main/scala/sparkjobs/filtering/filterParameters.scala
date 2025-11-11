@@ -1,15 +1,9 @@
 package sparkjobs.filtering
-
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.{StructType, StructField, StringType}
-
-import scala.io.Source
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import org.json4s.jackson.Serialization
-import org.json4s.jackson.Serialization.read
+
+import scala.io.Source
 
 case class FilterParametersType(
     deltaT: Int,

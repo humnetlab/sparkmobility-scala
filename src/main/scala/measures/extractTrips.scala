@@ -1,12 +1,10 @@
 package measures
 
+import com.uber.h3core.H3Core
 import org.apache.spark.sql.expressions.Window
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions.{col, udf, _}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import utils.H3DistanceUtils
-import org.apache.spark.sql.functions.udf
-import com.uber.h3core.H3Core
-import org.apache.spark.sql.functions.col
 
 import java.io.Serializable
 
@@ -38,7 +36,7 @@ object extractTrips {
       "distance",
       distanceUDF(col("h3_index"), col("next_h3_index"))
     )
-    val h3 = H3Core.newInstance()
+    H3Core.newInstance()
     val h3ToParentUDF = udf((h3Index: String) => {
       if (h3Index == null) {
         null // Return null if the input h3Index is null
@@ -115,7 +113,7 @@ object extractTrips {
       resolution: Int = 8,
       outputPath: String
   ): Unit = {
-    val h3 = H3Core.newInstance()
+    H3Core.newInstance()
     val h3ToParentUDF = udf((h3Index: String) => {
       if (h3Index == null) {
         null // Return null if the input h3Index is null

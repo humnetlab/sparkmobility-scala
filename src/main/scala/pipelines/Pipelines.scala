@@ -16,31 +16,25 @@
   */
 package pipelines
 
+import measures.{
+  dailyVisitedLocation,
+  departureTimeDistribution,
+  extractTrips,
+  locationDistribution,
+  stayDurationDistribution
+}
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.{DataFrame, SparkSession, functions => F, Row}
-import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
-
-import measures.extractTrips
-import measures.dailyVisitedLocation
-import measures.locationDistribution
-import measures.stayDurationDistribution
-import measures.departureTimeDistribution
-import sparkjobs.filtering.dataLoadFilter
-import sparkjobs.filtering.h3Indexer
+import org.apache.spark.sql.{SaveMode, SparkSession}
+import sparkjobs.filtering.{FilterParameters, dataLoadFilter}
 import sparkjobs.locations.locationType
 import sparkjobs.staydetection.StayDetection
-import sparkjobs.filtering.FilterParameters
-
-import utils.RunMode
+import utils.FileUtils
 import utils.RunMode.RunMode
 import utils.SparkFactory._
 import utils.TestUtils.runModeFromEnv
-import utils.FileUtils
-import scala.annotation.meta.param
 
 class Pipelines extends Logging {
   // Class implementation goes here
@@ -257,8 +251,7 @@ class Pipelines extends Logging {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     var dataDF              = FileUtils.readParquetData(folderPath, spark)
-    val odMatrix =
-      extractTrips.getHomeWorkMatrix(spark, dataDF, resolution, outputPath)
+    extractTrips.getHomeWorkMatrix(spark, dataDF, resolution, outputPath)
   }
 
   def getFullODMatrix(
@@ -286,8 +279,7 @@ class Pipelines extends Logging {
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     Logger.getRootLogger.setLevel(Level.WARN)
     var dataDF = FileUtils.readParquetData(folderPath, spark)
-    val odMatrix =
-      extractTrips.getODMatrix(spark, dataDF, resolution, outputPath)
+    extractTrips.getODMatrix(spark, dataDF, resolution, outputPath)
   }
 
   def getDailyVisitedLocation(folderPath: String, outputPath: String) {

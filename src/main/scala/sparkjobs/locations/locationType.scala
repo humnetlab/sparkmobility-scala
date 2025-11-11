@@ -1,11 +1,9 @@
 package sparkjobs.locations
 
 import com.uber.h3core.H3Core
-import org.apache.spark.sql.{DataFrame}
-import org.apache.spark.sql.expressions.Window
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.expressions.{UserDefinedFunction, Window}
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types._
-import org.apache.spark.sql.expressions.UserDefinedFunction
 import sparkjobs.filtering._
 
 object locationType extends Serializable {

@@ -1,13 +1,11 @@
 // src/main/scala/filter/dataProcessor.scala
 package sparkjobs.filtering
 
-import org.apache.spark.sql.{SparkSession, DataFrame}
 import org.apache.spark.sql.functions._
-import sparkjobs.filtering.FilterParameters._
-import scala.annotation.meta.param
-import java.time.LocalDateTime
+import org.apache.spark.sql.{DataFrame, SparkSession}
+
 import java.time.format.DateTimeFormatter
-import java.time.ZoneOffset
+import java.time.{LocalDateTime, ZoneOffset}
 
 object dataLoadFilter {
   def castToUTCTimestamp(

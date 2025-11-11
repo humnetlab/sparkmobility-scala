@@ -11,12 +11,6 @@ object SparkFactory extends Logging {
 
   private val sparkConfigsPath = "/config/SparkConfig.json"
 
-  private def hadoopConfigurations(spark: SparkSession): SparkSession = {
-    spark.sparkContext.hadoopConfiguration
-      .set("mapreduce.input.fileinputformat.input.dir.recursive", "true")
-    spark
-  }
-
   private def getSparkConf(
       runMode: RunMode,
       appName: String,

@@ -7,12 +7,27 @@ ThisBuild / resolvers ++= Seq(
   "JCenter" at "https://jcenter.bintray.com/"
 )
 
+ThisBuild / semanticdbEnabled := true
+ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
+ThisBuild / scalafixConfig := Some(
+  (ThisBuild / baseDirectory).value / ".scalafix.conf"
+)
+
 lazy val root = (project in file("."))
   .settings(
     // assemblyPackageScala / assembleArtifact := false,
     // assemblyPackageDependency / assembleArtifact := false,
     assembly / mainClass := Some("pipelines.Pipelines"),
     name                 := "timegeo_1",
+
+    // START OF SCALAFIX FIX
+    // These options are required for the OrganizeImports and RemoveUnused Scalafix rules in Scala 2.13.x
+    scalacOptions ++= Seq(
+      "-Wunused:imports", // Required for OrganizeImports.removeUnused (Error E0)
+      "-Wunused" // Required for RemoveUnused (Error E1)
+    ),
+    // END OF SCALAFIX FIX
+
     libraryDependencies ++= Seq(
       "org.scala-lang"    % "scala-library" % scalaVersion.value,
       "org.apache.spark" %% "spark-core"    % "3.5.0",

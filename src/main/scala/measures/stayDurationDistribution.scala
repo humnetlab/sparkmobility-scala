@@ -1,9 +1,7 @@
 package measures
 
-import org.apache.spark.sql.functions.{col, regexp_extract, sec}
+import org.apache.spark.sql.functions.{col, _}
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.functions._
 
 object stayDurationDistribution {
   def duration(spark: SparkSession, data: DataFrame): DataFrame = {
