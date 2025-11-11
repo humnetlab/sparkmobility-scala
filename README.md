@@ -1,7 +1,10 @@
 ![Scala CI](https://github.com/humnetlab/sparkmobility-scala/actions/workflows/scala.yml/badge.svg)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+![GitHub contributors](https://img.shields.io/github/contributors/humnetlab/sparkmobility-scala?cacheSeconds=3600)
 
-## sparkmobility-scala
+# sparkmobility-scala
+
+This is the Scala repository of `sparkmobility`. The Python user interface for `sparkmobility` can be found at [sparkmobility](https://github.com/humnetlab/sparkmobility).
 
 ## Pre-requisites
 ### Packaging the Scala Code
