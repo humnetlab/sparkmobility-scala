@@ -1,4 +1,7 @@
-## Timegeo
+![Scala CI](https://github.com/humnetlab/sparkmobility-scala/actions/workflows/scala.yml/badge.svg)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
+## sparkmobility-scala
 
 ## Pre-requisites
 ### Packaging the Scala Code
