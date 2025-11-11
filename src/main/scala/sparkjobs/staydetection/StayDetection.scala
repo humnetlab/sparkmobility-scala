@@ -1,5 +1,5 @@
-package sparkjobs.staydetectionimport
-com.uber.h3core.H3Core
+package sparkjobs.staydetection
+import com.uber.h3core.H3Core
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
