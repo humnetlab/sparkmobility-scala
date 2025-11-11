@@ -5,9 +5,8 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.functions._
 
-
 object departureTimeDistribution {
-  def departureTime(spark: SparkSession, data: DataFrame): DataFrame ={
+  def departureTime(spark: SparkSession, data: DataFrame): DataFrame = {
     val resultDF = data
       .groupBy("hour_of_day")
       .agg(count("*").alias("count"))

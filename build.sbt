@@ -25,7 +25,7 @@ lazy val root = (project in file("."))
       "org.json4s"       %% "json4s-native"    % "3.6.11"
 
       // "org.apache.hadoop" % "hadoop-client-api" % "3.3.4"
-    ),
+    )
   )
 
 assembly / assemblyJarName := "timegeo010.jar"

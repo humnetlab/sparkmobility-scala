@@ -67,9 +67,14 @@ object extractTrips {
       .withColumn( // (b) home-based other trips
         "is_home_other_trip",
         (col("origin") === col("home") || col("destination") === col("home")) &&
-        !((col("origin") === col("home") && col("destination") === col("work")) ||
-          (col("origin") === col("work") && col("destination") === col("home")))
-      ).withColumn( // (c) non-home based trips
+          !((col("origin") === col("home") && col("destination") === col(
+            "work"
+          )) ||
+            (col("origin") === col("work") && col("destination") === col(
+              "home"
+            )))
+      )
+      .withColumn( // (c) non-home based trips
         "is_non_home_trip",
         col("origin") =!= col("home") && col("destination") =!= col("home")
       )
@@ -79,7 +84,8 @@ object extractTrips {
       .withColumn("parent_origin", h3ToParentUDF(col("origin")))
       .withColumn("parent_destination", h3ToParentUDF(col("destination")))
       .withColumn("parent_home", h3ToParentUDF(col("home")))
-      .withColumn("parent_work", h3ToParentUDF(col("work"))).cache()
+      .withColumn("parent_work", h3ToParentUDF(col("work")))
+      .cache()
 
     val odCount = resultWithParent
       .groupBy("parent_origin", "parent_destination")
@@ -111,13 +117,13 @@ object extractTrips {
   ): Unit = {
     val h3 = H3Core.newInstance()
     val h3ToParentUDF = udf((h3Index: String) => {
-        if (h3Index == null) {
-          null // Return null if the input h3Index is null
-        } else {
-          val h3 = H3CoreSingleton.instance
+      if (h3Index == null) {
+        null // Return null if the input h3Index is null
+      } else {
+        val h3 = H3CoreSingleton.instance
 
-          h3.cellToParentAddress(h3Index, resolution)
-        }
+        h3.cellToParentAddress(h3Index, resolution)
+      }
     })
     val distanceUDF = udf[Double, String, String](H3DistanceUtils.distance)
 
@@ -125,14 +131,15 @@ object extractTrips {
       .select(
         col("caid"),
         col("home_h3_index").alias("origin"),
-        col("work_h3_index").alias("destination"),
+        col("work_h3_index").alias("destination")
       )
       .dropDuplicates("caid", "origin", "destination")
       .groupBy("origin", "destination")
       .agg(
         countDistinct("caid").alias("unique_count")
-      ).filter(col("origin").isNotNull && col("destination").isNotNull)
-   
+      )
+      .filter(col("origin").isNotNull && col("destination").isNotNull)
+
     val resultWithParent = result
       .withColumn("origin", h3ToParentUDF(col("origin")))
       .withColumn("destination", h3ToParentUDF(col("destination")))
@@ -144,7 +151,8 @@ object extractTrips {
       .groupBy("origin", "destination")
       .agg(
         sum("unique_count").alias("flow")
-      ).filter(col("origin").isNotNull && col("destination").isNotNull)
+      )
+      .filter(col("origin").isNotNull && col("destination").isNotNull)
 
     // Calculate distance
     val odDistance = resultWithParent.withColumn(

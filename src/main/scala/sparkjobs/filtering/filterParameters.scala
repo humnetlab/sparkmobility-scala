@@ -13,7 +13,7 @@ import org.json4s.jackson.Serialization.read
 
 case class FilterParametersType(
     deltaT: Int,
-    spatialThreshold:  Double,
+    spatialThreshold: Double,
     speedThreshold: Double,
     temporalThreshold: Int,
     hexResolution: Int,
@@ -31,11 +31,13 @@ case class FilterParametersType(
 )
 
 object FilterParameters {
-    implicit val formats: Formats = Serialization.formats(NoTypeHints)
+  implicit val formats: Formats = Serialization.formats(NoTypeHints)
 
-    def fromJsonFile(filePath: String): FilterParametersType = {
-        val source = Source.fromFile(filePath)
-        val jsonString = try source.mkString finally source.close()
-        parse(jsonString).extract[FilterParametersType]
-    }
+  def fromJsonFile(filePath: String): FilterParametersType = {
+    val source = Source.fromFile(filePath)
+    val jsonString =
+      try source.mkString
+      finally source.close()
+    parse(jsonString).extract[FilterParametersType]
+  }
 }

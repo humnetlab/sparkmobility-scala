@@ -1,6 +1,5 @@
 package utils
 
-
 import java.io.{File, FileWriter, InputStream}
 import java.nio.file.{Files, Paths}
 
@@ -13,25 +12,23 @@ import scala.io.Source
 import scala.reflect.io.Directory
 import org.apache.spark.sql.types.StructType
 
-
 object FileUtils extends Logging {
-  
+
   implicit val formats: DefaultFormats.type = DefaultFormats
 
   def readJsonAsMap(path: String): Map[String, String] = {
     val fileContent = readResourceFile(path)
-    val jsonAsMap = parse(fileContent).extract[Map[String,String]]
+    val jsonAsMap   = parse(fileContent).extract[Map[String, String]]
     jsonAsMap
   }
 
   def readResourceFile(path: String): String = {
 
     val stream: InputStream = getClass.getResourceAsStream(path)
-    val lines = scala.io.Source.fromInputStream(stream)
+    val lines               = scala.io.Source.fromInputStream(stream)
     try {
       lines.getLines().mkString(" ")
-    }
-    finally{
+    } finally {
       lines.close()
     }
   }
@@ -59,12 +56,16 @@ object FileUtils extends Logging {
     }
   }
 
-  def saveFile(lines: List[String], directory: String, fileName: String, writePermissions: Boolean = false): Unit = {
+  def saveFile(
+      lines: List[String],
+      directory: String,
+      fileName: String,
+      writePermissions: Boolean = false
+  ): Unit = {
 
-    if(Directory(directory).exists) {
+    if (Directory(directory).exists) {
       log.info(s"Directory: $directory exists. Writing data to file")
-    }
-    else {
+    } else {
       createDir(directory)
       log.info(s"Directory: $directory doesnot exist. Created directory")
     }
@@ -83,7 +84,7 @@ object FileUtils extends Logging {
 
   def createDir(dirPath: String, recursive: Boolean = false): Boolean = {
     val file = new File(dirPath)
-    if(recursive) file.mkdirs()
+    if (recursive) file.mkdirs()
     else file.mkdir()
   }
 
@@ -104,7 +105,12 @@ object FileUtils extends Logging {
     dataDF
   }
 
-  def readCSVData(fullPath: String, delim: String, ifHeader: String, spark: SparkSession): DataFrame = {
+  def readCSVData(
+      fullPath: String,
+      delim: String,
+      ifHeader: String,
+      spark: SparkSession
+  ): DataFrame = {
     log.info(s"Reading Parquet data from path: $fullPath")
 
     val path = new File(fullPath)
@@ -123,7 +129,11 @@ object FileUtils extends Logging {
     dataDF
   }
 
-  def readTextData(fullPath: String, schema: StructType, spark: SparkSession): DataFrame = {
+  def readTextData(
+      fullPath: String,
+      schema: StructType,
+      spark: SparkSession
+  ): DataFrame = {
     log.info(s"Reading Parquet data from path: $fullPath")
 
     val path = new File(fullPath)

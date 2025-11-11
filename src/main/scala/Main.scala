@@ -5,7 +5,12 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 import com.uber.h3core.H3Core
-import measures.{dailyVisitedLocation, extractTrips, locationDistribution, stayDurationDistribution}
+import measures.{
+  dailyVisitedLocation,
+  extractTrips,
+  locationDistribution,
+  stayDurationDistribution
+}
 import utils.RunMode
 import utils.RunMode.RunMode
 import utils.TestUtils.runModeFromEnv
@@ -15,8 +20,8 @@ import pipelines.Pipelines
 import utils.FileUtils
 import java.io.File
 
-object Main extends Logging{
-  val runMode : RunMode = runModeFromEnv()
+object Main extends Logging {
+  val runMode: RunMode = runModeFromEnv()
 
   // def repartitionParquet(spark: SparkSession, path: String): Unit = {
   //   val schema = StructType(Seq(
@@ -30,7 +35,7 @@ object Main extends Logging{
   //   var dataDF = FileUtils.readTextData(path, schema, spark)
 
   def main(args: Array[String]): Unit = {
-    
+
     log.info("Creating spark session and running the job")
     var pipe = new Pipelines()
 
@@ -40,7 +45,8 @@ object Main extends Logging{
     // folders.foreach { folder =>
     //   repartitionParquet(spark, folder.getAbsolutePath)
     // }
-    var input: String = "/data_1/quadrant/output/output_fixed_timezones/work_locations.parquet"
+    var input: String =
+      "/data_1/quadrant/output/output_fixed_timezones/work_locations.parquet"
     var output: String = "data_1/quadrant/output/output_fixed_timezones"
     // pipe.getStays(input, output)
     // pipe.getHomeWorkLocation(output, "/data_1/quadrant/output")

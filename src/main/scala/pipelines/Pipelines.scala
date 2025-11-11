@@ -1,19 +1,19 @@
-/**
- * Implements data processing pipelines for mobility data analysis.
- * 
- * This class provides methods to process spatiotemporal data to identify stays,
- * extract home and work locations, and generate origin-destination matrices.
- * It leverages Spark for distributed processing of potentially large datasets.
- * 
- * The pipelines implemented include:
- * - Stay detection from raw mobility data
- * - Identification of home and work locations
- * - Origin-destination matrix calculation between home and work locations
- * - Full origin-destination matrix calculation for all locations
- * 
- * All methods utilize Apache Spark and rely on configuration parameters that can be
- * supplied through JSON configuration files.
- */
+/** Implements data processing pipelines for mobility data analysis.
+  *
+  * This class provides methods to process spatiotemporal data to identify
+  * stays, extract home and work locations, and generate origin-destination
+  * matrices. It leverages Spark for distributed processing of potentially large
+  * datasets.
+  *
+  * The pipelines implemented include:
+  *   - Stay detection from raw mobility data
+  *   - Identification of home and work locations
+  *   - Origin-destination matrix calculation between home and work locations
+  *   - Full origin-destination matrix calculation for all locations
+  *
+  * All methods utilize Apache Spark and rely on configuration parameters that
+  * can be supplied through JSON configuration files.
+  */
 package pipelines
 
 import org.apache.log4j.{Level, Logger}
@@ -52,8 +52,13 @@ class Pipelines extends Logging {
       timeFormat: String,
       inputFormat: String,
       delim: String,
-      ifHeader: String, 
-      columnNames: Map[String, String] = Map("_c0" -> "caid", "_c2" -> "latitude", "_c3" -> "longitude", "_c5" -> "utc_timestamp"),
+      ifHeader: String,
+      columnNames: Map[String, String] = Map(
+        "_c0" -> "caid",
+        "_c2" -> "latitude",
+        "_c3" -> "longitude",
+        "_c5" -> "utc_timestamp"
+      ),
       configFile: String = "src/main/resources/config/DefaultParameters.json"
   ): Unit = {
     log.info("Creating spark session")
@@ -64,37 +69,44 @@ class Pipelines extends Logging {
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     Logger.getRootLogger.setLevel(Level.WARN)
     var dataDF = if (inputFormat == "parquet") {
-        FileUtils.readParquetData(folderPath, spark)
+      FileUtils.readParquetData(folderPath, spark)
     } else if (inputFormat == "csv") {
-        FileUtils.readCSVData(folderPath, delim, ifHeader, spark)
+      FileUtils.readCSVData(folderPath, delim, ifHeader, spark)
     } else {
-        throw new IllegalArgumentException("Unsupported input format")
+      throw new IllegalArgumentException("Unsupported input format")
     }
-    
+
     // var dataDF = FileUtils.readParquetData(folderPath, spark)
     // var dataDF = FileUtils.readCSVData(folderPath, spark)
     // dataDF = dataDF.sample(withReplacement = false, fraction = 0.1, seed = 42)
 
     // Rename columns using the columnNames map
     dataDF = dataDF.select(
-      columnNames.map { case (originalCol, aliasCol) => col(originalCol).alias(aliasCol) }.toSeq: _*
+      columnNames.map { case (originalCol, aliasCol) =>
+        col(originalCol).alias(aliasCol)
+      }.toSeq: _*
     )
 
     if (timeFormat != "UNIX") {
       dataDF = dataDF
         .withColumn(
           "utc_timestamp",
-          unix_timestamp(col("utc_timestamp"), timeFormat) // convert timestamp to Unix time
+          unix_timestamp(
+            col("utc_timestamp"),
+            timeFormat
+          ) // convert timestamp to Unix time
         )
     }
-    dataDF = dataDF
-      .na.drop(Seq("latitude","longitude","utc_timestamp"))
-      .withColumn("latitude",  col("latitude").cast(DoubleType))
+    dataDF = dataDF.na
+      .drop(Seq("latitude", "longitude", "utc_timestamp"))
+      .withColumn("latitude", col("latitude").cast(DoubleType))
       .withColumn("longitude", col("longitude").cast(DoubleType))
       .withColumn("utc_epoch_s", col("utc_timestamp").cast(LongType))
-      .withColumn("utc_timestamp", to_timestamp(from_unixtime(col("utc_epoch_s")))) // TimestampType (UTC)
+      .withColumn(
+        "utc_timestamp",
+        to_timestamp(from_unixtime(col("utc_epoch_s")))
+      ) // TimestampType (UTC)
       .drop("utc_epoch_s")
-
 
     dataDF = dataLoadFilter.loadFilteredData(spark, dataDF, params)
 
@@ -122,6 +134,46 @@ class Pipelines extends Logging {
     // log.info("getStays Count: " + getStaysCount)
     log.info("Processing mapToH3")
     // getStays.count() == 309430
+
+    // // Save intermediate getStays to a temporary parquet, free its cache, reload from disk and schedule deletion
+    // val tmpGetStaysPath = s"${outputPath.stripSuffix("/")}/_tmp_getStays_${java.util.UUID.randomUUID().toString}"
+    // log.info(s"Writing intermediate getStays to $tmpGetStaysPath")
+    // getStays.write.mode("overwrite").parquet(tmpGetStaysPath)
+
+    // // Free memory held by the cached DataFrame
+    // try {
+    //   getStays.unpersist()
+    // } catch {
+    //   case _: Throwable => log.warn("Warning: failed to unpersist original getStays (might not be cached)")
+    // }
+
+    // // Reload the DataFrame from disk (use this reloaded DF for downstream processing if you choose)
+    // val getStaysReloaded = FileUtils.readParquetData(tmpGetStaysPath, spark)
+    //   .repartition(col("caid"))
+    //   .cache()
+    // getStaysReloaded.count() // materialize to ensure it's persisted from disk
+
+    // // Schedule deletion of the temporary file when the JVM exits (also attempts immediate delete at end)
+    // def deleteTmpPath(): Unit = {
+    //   try {
+    //     val hadoopConf = spark.sparkContext.hadoopConfiguration
+    //     val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
+    //     val p = new org.apache.hadoop.fs.Path(tmpGetStaysPath)
+    //     if (fs.exists(p)) {
+    //       fs.delete(p, true)
+    //       log.info(s"Deleted temporary path: $tmpGetStaysPath")
+    //     }
+    //   } catch {
+    //     case e: Throwable => log.warn(s"Unable to delete temporary path $tmpGetStaysPath: ${e.getMessage}")
+    //   }
+    // }
+
+    // sys.addShutdownHook {
+    //   deleteTmpPath()
+    // }
+
+    // // Attempt immediate deletion at the end of the method will be performed after final write (registered above).
+    // // Note: downstream code can use `getStaysReloaded` instead of the original `getStays` to ensure disk-backed data is used.
 
     // 2 mapToH3
     val (passingResult, stays) = StayDetection.mapToH3(
@@ -179,7 +231,7 @@ class Pipelines extends Logging {
       col("stay_end_timestamp"),
       col("stay_duration"),
       col("h3_id_region"),
-      col("local_time"),                  // already local
+      col("local_time"), // already local
       col("h3_index"),
       dayofweek(col("local_time")).as("day_of_week"),
       hour(col("local_time")).as("hour_of_day")
@@ -200,69 +252,75 @@ class Pipelines extends Logging {
   def getODMatrix(
       folderPath: String,
       outputPath: String,
-      resolution: Int,
+      resolution: Int
   ): Unit = {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
-    var dataDF = FileUtils.readParquetData(folderPath, spark)
-    val odMatrix = extractTrips.getHomeWorkMatrix(spark, dataDF, resolution, outputPath)
+    var dataDF              = FileUtils.readParquetData(folderPath, spark)
+    val odMatrix =
+      extractTrips.getHomeWorkMatrix(spark, dataDF, resolution, outputPath)
   }
-  
+
   def getFullODMatrix(
       folderPath: String,
       outputPath: String,
-      resolution: Int,
+      resolution: Int
   ): Unit = {
-    /**
-   * Generates a full origin-destination (OD) matrix from parquet data.
-   *
-   * This function reads parquet data from the specified folder, processes it to extract
-   * trip information, and creates an origin-destination matrix at the specified resolution.
-   * The resulting OD matrix is saved to the given output path.
-   *
-   * @param folderPath The path to the folder containing input parquet data files
-   * @param outputPath The path where the generated OD matrix and full trips will be saved
-   * @param resolution The spatial resolution for the OD matrix
-   */
-    
+
+    /** Generates a full origin-destination (OD) matrix from parquet data.
+      *
+      * This function reads parquet data from the specified folder, processes it
+      * to extract trip information, and creates an origin-destination matrix at
+      * the specified resolution. The resulting OD matrix is saved to the given
+      * output path.
+      *
+      * @param folderPath
+      *   The path to the folder containing input parquet data files
+      * @param outputPath
+      *   The path where the generated OD matrix and full trips will be saved
+      * @param resolution
+      *   The spatial resolution for the OD matrix
+      */
+
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     Logger.getRootLogger.setLevel(Level.WARN)
     var dataDF = FileUtils.readParquetData(folderPath, spark)
-    val odMatrix = extractTrips.getODMatrix(spark, dataDF, resolution, outputPath)
+    val odMatrix =
+      extractTrips.getODMatrix(spark, dataDF, resolution, outputPath)
   }
 
-  def getDailyVisitedLocation(folderPath: String, outputPath: String){
+  def getDailyVisitedLocation(folderPath: String, outputPath: String) {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
-    var dataDF = FileUtils.readParquetData(folderPath, spark)
-    val resultDF = dailyVisitedLocation.visit(spark, dataDF)
+    var dataDF              = FileUtils.readParquetData(folderPath, spark)
+    val resultDF            = dailyVisitedLocation.visit(spark, dataDF)
     resultDF.write
       .mode(SaveMode.Overwrite)
       .parquet(outputPath)
   }
-  def getLocationDistribution(folderPath: String, outputPath: String){
+  def getLocationDistribution(folderPath: String, outputPath: String) {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
-    var dataDF = FileUtils.readParquetData(folderPath, spark)
-    val resultDF = locationDistribution.locate(spark, dataDF)
+    var dataDF              = FileUtils.readParquetData(folderPath, spark)
+    val resultDF            = locationDistribution.locate(spark, dataDF)
     resultDF.write
       .mode(SaveMode.Overwrite)
       .parquet(outputPath)
   }
-  def getStayDurationDistribution(folderPath: String, outputPath: String){
+  def getStayDurationDistribution(folderPath: String, outputPath: String) {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
-    var dataDF = FileUtils.readParquetData(folderPath, spark)
-    val resultDF = stayDurationDistribution.duration(spark, dataDF)
+    var dataDF              = FileUtils.readParquetData(folderPath, spark)
+    val resultDF            = stayDurationDistribution.duration(spark, dataDF)
     resultDF.write
       .mode(SaveMode.Overwrite)
       .parquet(outputPath)
   }
-  def getDepartureTimeDistribution(folderPath: String, outputPath: String){
+  def getDepartureTimeDistribution(folderPath: String, outputPath: String) {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
-    var dataDF = FileUtils.readParquetData(folderPath, spark)
+    var dataDF              = FileUtils.readParquetData(folderPath, spark)
     val resultDF = departureTimeDistribution.departureTime(spark, dataDF)
     resultDF.write
       .mode(SaveMode.Overwrite)

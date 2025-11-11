@@ -12,7 +12,8 @@ object h3Indexer {
       h3.latLngToCell(latitude, longitude, resolution).toHexString
     })
 
-    val updatedData = data.withColumn("h3_index", h3UDF(col("latitude"), col("longitude")))
+    val updatedData =
+      data.withColumn("h3_index", h3UDF(col("latitude"), col("longitude")))
     updatedData
   }
 }

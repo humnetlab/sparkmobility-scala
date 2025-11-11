@@ -2,6 +2,12 @@
 
 set -e  # Exit immediately if a command exits with a non-zero status
 
+echo "Step 0: Formatting Scala code with scalafmt"
+
+sbt scalafmtSbt
+
+sbt scalafmtAll
+
 echo "Step 1: Compiling Scala code with sbt"
 sbt compile
 

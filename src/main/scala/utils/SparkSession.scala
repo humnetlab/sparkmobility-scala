@@ -11,24 +11,29 @@ object SparkFactory extends Logging {
 
   private val sparkConfigsPath = "/config/SparkConfig.json"
 
-  private def hadoopConfigurations(spark: SparkSession) : SparkSession = {
-    spark.sparkContext.hadoopConfiguration.set("mapreduce.input.fileinputformat.input.dir.recursive","true")
+  private def hadoopConfigurations(spark: SparkSession): SparkSession = {
+    spark.sparkContext.hadoopConfiguration
+      .set("mapreduce.input.fileinputformat.input.dir.recursive", "true")
     spark
   }
 
-  private def getSparkConf(runMode: RunMode, appName: String, configOverrides: Map[String, String]): SparkConf = {
+  private def getSparkConf(
+      runMode: RunMode,
+      appName: String,
+      configOverrides: Map[String, String]
+  ): SparkConf = {
 
     runMode match {
       case RunMode.UNIT_TEST =>
         log.info("Setting up unit test spark configs")
         val unitTestSparkConfigurations = Map[String, String](
-          "spark.master" -> "local[4]",
-          "spark.executor.memory" -> "4g",
-          "spark.app.name" -> RunMode.UNIT_TEST.toString,
+          "spark.master"                    -> "local[4]",
+          "spark.executor.memory"           -> "4g",
+          "spark.app.name"                  -> RunMode.UNIT_TEST.toString,
           "spark.sql.catalogImplementation" -> "in-memory",
-          "spark.sql.shuffle.partitions" -> "1",
-          "spark.sql.warehouse.dir" -> "target/spark-warehouse",
-          "log4j.configuration" -> "log4j.properties"
+          "spark.sql.shuffle.partitions"    -> "1",
+          "spark.sql.warehouse.dir"         -> "target/spark-warehouse",
+          "log4j.configuration"             -> "log4j.properties"
         )
         new SparkConf().setAll(unitTestSparkConfigurations)
       case RunMode.PRODUCTION =>
@@ -39,10 +44,15 @@ object SparkFactory extends Logging {
     }
   }
 
-  def createSparkSession(runMode: RunMode, appName: String = "Sample App", configOverrides: Map[String, String] = Map.empty[String, String]): SparkSession = {
+  def createSparkSession(
+      runMode: RunMode,
+      appName: String = "Sample App",
+      configOverrides: Map[String, String] = Map.empty[String, String]
+  ): SparkSession = {
     val spark = runMode match {
       case RunMode.UNIT_TEST => {
-        SparkSession.builder()
+        SparkSession
+          .builder()
           .appName(appName)
           .config(getSparkConf(runMode, appName, configOverrides))
           .getOrCreate()
