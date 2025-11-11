@@ -7,6 +7,9 @@ ThisBuild / resolvers ++= Seq(
   "JCenter" at "https://jcenter.bintray.com/"
 )
 
+headerLicense := Some(
+  HeaderLicense.ALv2("2026", "humnetlab", HeaderLicenseStyle.SpdxSyntax)
+)
 ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 ThisBuild / scalafixConfig := Some(

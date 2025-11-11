@@ -1,3 +1,9 @@
+/*
+ * Copyright 2026 humnetlab
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 // src/main/scala/filter/dataProcessor.scala
 package sparkjobs.filtering
 

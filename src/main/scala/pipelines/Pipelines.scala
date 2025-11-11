@@ -1,19 +1,9 @@
-/** Implements data processing pipelines for mobility data analysis.
-  *
-  * This class provides methods to process spatiotemporal data to identify
-  * stays, extract home and work locations, and generate origin-destination
-  * matrices. It leverages Spark for distributed processing of potentially large
-  * datasets.
-  *
-  * The pipelines implemented include:
-  *   - Stay detection from raw mobility data
-  *   - Identification of home and work locations
-  *   - Origin-destination matrix calculation between home and work locations
-  *   - Full origin-destination matrix calculation for all locations
-  *
-  * All methods utilize Apache Spark and rely on configuration parameters that
-  * can be supplied through JSON configuration files.
-  */
+/*
+ * Copyright 2026 humnetlab
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package pipelines
 
 import measures.{

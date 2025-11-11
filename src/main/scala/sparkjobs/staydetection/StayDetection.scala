@@ -1,3 +1,9 @@
+/*
+ * Copyright 2026 humnetlab
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package sparkjobs.staydetection
 import com.uber.h3core.H3Core
 import org.apache.spark.sql.expressions.{Window, WindowSpec}

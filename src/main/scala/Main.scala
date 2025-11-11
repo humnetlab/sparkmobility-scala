@@ -1,3 +1,9 @@
+/*
+ * Copyright 2026 humnetlab
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package com.timegeo
 import org.apache.spark.internal.Logging
 import pipelines.Pipelines

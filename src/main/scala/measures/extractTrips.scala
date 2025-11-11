@@ -1,3 +1,9 @@
+/*
+ * Copyright 2026 humnetlab
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package measures
 
 import com.uber.h3core.H3Core

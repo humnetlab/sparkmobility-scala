@@ -1,3 +1,9 @@
+/*
+ * Copyright 2026 humnetlab
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package sparkjobs.filtering
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
