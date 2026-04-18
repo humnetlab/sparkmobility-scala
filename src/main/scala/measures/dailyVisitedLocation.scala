@@ -5,6 +5,7 @@
  */
 
 package measures
+import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
@@ -16,12 +17,13 @@ object dailyVisitedLocation {
       .groupBy("caid", "date")
       .agg(countDistinct("h3_index").alias("locations"))
 
-    val countVisits = visits
+    // Total-sum via an unbounded window avoids a second action (previously `visits.count()`)
+    // and keeps probability computation within a single Spark job.
+    val totalWindow = Window.partitionBy()
+    visits
       .groupBy("locations")
       .agg(count("*").alias("count"))
       .orderBy("locations")
-      .withColumn("probability", col("count") / visits.count())
-
-    countVisits
+      .withColumn("probability", col("count") / sum("count").over(totalWindow))
   }
 }

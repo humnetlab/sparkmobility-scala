@@ -6,6 +6,7 @@
 
 package measures
 
+import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{col, _}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
@@ -37,12 +38,12 @@ object stayDurationDistribution {
     val binnedWithRange =
       binnedData.withColumn("range", (col("bin_index") + 1) * lit(binSize))
 
-    val resultDF = binnedWithRange
+    // Use a window sum over aggregated counts rather than a second `hoursDF.count()` action.
+    val totalWindow = Window.partitionBy()
+    binnedWithRange
       .groupBy("range")
       .agg(count("*").alias("count"))
       .orderBy("range")
-      .withColumn("probability", col("count") / hoursDF.count())
-
-    resultDF
+      .withColumn("probability", col("count") / sum("count").over(totalWindow))
   }
 }

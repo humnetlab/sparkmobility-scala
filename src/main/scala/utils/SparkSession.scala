@@ -17,6 +17,16 @@ object SparkFactory extends Logging {
 
   private val sparkConfigsPath = "/config/SparkConfig.json"
 
+  // Baseline configs applied to every SparkSession regardless of run mode.
+  // Enabling AQE + Kryo here (rather than only in PRODUCTION) so that local runs, tests,
+  // and py4j-driven invocations all get the same query optimizer and serializer behavior.
+  private val baselineConfigurations: Map[String, String] = Map(
+    "spark.serializer"                        -> classOf[KryoSerializer].getName,
+    "spark.sql.adaptive.enabled"              -> "true",
+    "spark.sql.adaptive.coalescePartitions.enabled" -> "true",
+    "spark.sql.adaptive.skewJoin.enabled"     -> "true"
+  )
+
   private def getSparkConf(
       runMode: RunMode,
       appName: String,
@@ -35,12 +45,14 @@ object SparkFactory extends Logging {
           "spark.sql.warehouse.dir"         -> "target/spark-warehouse",
           "log4j.configuration"             -> "log4j.properties"
         )
-        new SparkConf().setAll(unitTestSparkConfigurations)
+        new SparkConf().setAll(
+          baselineConfigurations ++ unitTestSparkConfigurations ++ configOverrides
+        )
       case RunMode.PRODUCTION =>
         log.info("Setting up the production spark configs")
-        new SparkConf()
-          .setAll(readJsonAsMap(sparkConfigsPath) ++ configOverrides)
-          .set("spark.serializer", classOf[KryoSerializer].getName)
+        new SparkConf().setAll(
+          baselineConfigurations ++ readJsonAsMap(sparkConfigsPath) ++ configOverrides
+        )
     }
   }
 
