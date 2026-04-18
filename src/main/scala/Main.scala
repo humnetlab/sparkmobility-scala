@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.timegeo
+package pipelines
 import org.apache.spark.internal.Logging
-import pipelines.Pipelines
 import utils.RunMode.RunMode
 import utils.TestUtils.runModeFromEnv
 
@@ -37,7 +36,7 @@ object Main extends Logging {
     // }
     var input: String =
       "/data_1/quadrant/output/output_fixed_timezones/work_locations.parquet"
-    var output: String = "data_1/quadrant/output/output_fixed_timezones"
+    var output: String = "/data_1/quadrant/output/output_fixed_timezones"
     // pipe.getStays(input, output)
     // pipe.getHomeWorkLocation(output, "/data_1/quadrant/output")
     pipe.getFullODMatrix(input, output, 8)

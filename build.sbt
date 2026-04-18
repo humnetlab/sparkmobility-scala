@@ -20,7 +20,7 @@ lazy val root = (project in file("."))
   .settings(
     // assemblyPackageScala / assembleArtifact := false,
     // assemblyPackageDependency / assembleArtifact := false,
-    assembly / mainClass := Some("pipelines.Pipelines"),
+    assembly / mainClass := Some("pipelines.Main"),
     name                 := "timegeo_1",
 
     // START OF SCALAFIX FIX

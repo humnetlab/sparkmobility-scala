@@ -97,7 +97,7 @@ To run the project, you can use the following command:
 ```bash
 
 spark-submit \
-  --class com.timegeo.Main \
+  --class pipelines.Main \
   --master  <your_master_url> \ # e.g., local[*], yarn
   --driver-memory <MEMORY>g \
   --executor-memory <MEMORY>g \
