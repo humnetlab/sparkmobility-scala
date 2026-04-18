@@ -106,83 +106,82 @@ object StayDetection {
     val windowSpec: WindowSpec =
       Window.partitionBy("caid").orderBy("utc_timestamp")
 
-    // Calculate time lag between consecutive events for each 'caid', time difference (delta_t) between consecutive events
-    // val dfWithLag2 = df
-    //   .withColumn("lag_timestamp", lag("utc_timestamp", 1).over(windowSpec))
-    //   .withColumn(
-    //     "delta_t",
-    //     unix_timestamp(col("utc_timestamp")) - unix_timestamp(
-    //       col("lag_timestamp")
-    //     )
-    //   )
-    //   .withColumn(
-    //     "temporal_stay",
-    //     when(col("delta_t") > delta_t, 1).otherwise(0)
-    //   ) // Mark as temporal stay if the time difference exceeds the threshold
-
+    // Calculate time lag between consecutive events for each 'caid', time difference (delta_t) between consecutive events.
+    // NOTE: delta_t must be materialized before being referenced by temporal_stay — a single select() can't alias and
+    // consume the alias in the same projection, so this is split into two steps.
     val dfWithLag = df
-      .select(
-        col("*"),
-        (unix_timestamp(col("utc_timestamp")) - unix_timestamp(
+      .withColumn(
+        "delta_t",
+        unix_timestamp(col("utc_timestamp")) - unix_timestamp(
           lag("utc_timestamp", 1).over(windowSpec)
-        )).as("delta_t"),
-        when(col("delta_t") > delta_t, 1).otherwise(0).as("temporal_stay")
+        )
       )
-    // Assign a unique stay ID based on the temporal stay
+      .withColumn(
+        "temporal_stay",
+        when(col("delta_t") > delta_t, 1).otherwise(0)
+      )
+    // Assign a unique stay ID based on the temporal stay, plus a stable per-row ordinal within the group
+    // so we can join sequentialStayDetection output back to source rows without relying on partition layout.
+    val groupWindow =
+      Window.partitionBy("caid", "temporal_stay_id").orderBy("utc_timestamp")
     val dfWithStayId = dfWithLag
       .withColumn(
         "temporal_stay_id",
         sum("temporal_stay").over(windowSpec)
       )
+      .withColumn("row_in_group", row_number().over(groupWindow))
       .cache()
-    // Perform a flatMap transformation to apply the sequential stay detection
+
+    // Perform a flatMap transformation to apply the sequential stay detection.
+    // We carry row_in_group through the group so the output position is deterministic.
     val resultRDD = dfWithStayId
       .groupBy("caid", "temporal_stay_id")
-      .agg(collect_list(struct("latitude", "longitude")).alias("group_data"))
+      .agg(
+        collect_list(struct("row_in_group", "latitude", "longitude"))
+          .alias("group_data")
+      )
       .rdd
       .flatMap { row =>
         val caid           = row.get(0).toString
         val temporalStayId = row.getLong(1)
-        val groupData =
-          row.getAs[scala.collection.Seq[Row]]("group_data").toSeq.map { r =>
-            Map(
-              "latitude"  -> r.getAs[Double]("latitude"),
-              "longitude" -> r.getAs[Double]("longitude")
-            )
+        // Sort by row_in_group so iteration order matches the original time order regardless of
+        // whatever ordering collect_list happened to produce.
+        val ordered = row
+          .getAs[scala.collection.Seq[Row]]("group_data")
+          .toSeq
+          .sortBy(_.getAs[Int]("row_in_group"))
+        val groupData = ordered.map { r =>
+          Map(
+            "latitude"  -> r.getAs[Double]("latitude"),
+            "longitude" -> r.getAs[Double]("longitude")
+          )
+        }
+        val rowIds = ordered.map(_.getAs[Int]("row_in_group"))
+        rowIds
+          .iterator
+          .zip(sequentialStayDetection(groupData.iterator, threshold))
+          .map { case (rowId, flag) =>
+            (caid, temporalStayId, rowId, flag)
           }
-        sequentialStayDetection(groupData.iterator, threshold).map(
-          (caid, temporalStayId, _)
-        )
       }
     import spark.implicits._
 
-    // Convert result RDD to a DataFrame and assign unique join keys
     val listDF = resultRDD
-      .toDF("caid", "temporalStayId", "distance_threshold")
-      .withColumn("join_key", monotonically_increasing_id())
-      .cache()
+      .toDF("caid", "temporal_stay_id", "row_in_group", "distance_threshold")
 
-    // Add join key to the original DataFrame
-    val dfWithJoinKey =
-      dfWithStayId.withColumn("join_key", monotonically_increasing_id())
+    // Join on the stable (caid, temporal_stay_id, row_in_group) key — no monotonic ID dependency.
+    val joinedDF = dfWithStayId
+      .join(listDF, Seq("caid", "temporal_stay_id", "row_in_group"), "inner")
 
-    // Join the DataFrame with the result DataFrame based on the join key
-    val joinedDF = dfWithJoinKey
-      .as("df1")
-      .join(listDF.as("df2"), "join_key")
-      .drop("join_key")
-    // Drop duplicate 'caid' column
-    val deduplicatedDF = joinedDF.drop(joinedDF.col("df2.caid"))
     // Determine if a location qualifies as a stay based on temporal or distance criteria
     // And assign a unique stay ID to each stay event
-    val dfWithFinalStayId = deduplicatedDF
-      .select(
-        col("*"),
+    val dfWithFinalStayId = joinedDF
+      .withColumn(
+        "stay_id",
         sum(
           when(col("temporal_stay") === 1 || col("distance_threshold") === 1, 1)
             .otherwise(0)
         ).over(windowSpec)
-          .as("stay_id")
       )
 
     // Select the relevant columns and group by stay ID for final aggregation
@@ -194,7 +193,6 @@ object StayDetection {
         mean("latitude").alias("latitude"),
         mean("longitude").alias("longitude")
       )
-    listDF.unpersist()
     dfWithStayId.unpersist()
     resultDF
   }
@@ -422,19 +420,19 @@ object StayDetection {
         sequentialH3RegionDetectionUDF(col("list_of_h3_id"))
       )
 
-    // Explode the H3 region and H3 ID lists for each caid
-    val explodedDfRegion = groupedDf
-      .selectExpr("caid", "explode(h3_id_region) as h3_id_region")
-      .withColumn("join_key", monotonically_increasing_id())
-    val explodedDfList = groupedDf
-      .selectExpr("caid", "explode(list_of_h3_id) as h3_id")
-      .withColumn("join_key", monotonically_increasing_id())
-
-    // Join to map each H3 ID to its identified region
-    explodedDfRegion
-      .as("region")
-      .join(explodedDfList.as("list"), Seq("join_key"))
-      .select(col("list.caid"), col("list.h3_id"), col("region.h3_id_region"))
+    // Zip the two parallel arrays with arrays_zip before exploding so position alignment is guaranteed
+    // by Spark itself rather than by coincident monotonic IDs.
+    groupedDf
+      .select(
+        col("caid"),
+        explode(arrays_zip(col("list_of_h3_id"), col("h3_id_region")))
+          .as("zipped")
+      )
+      .select(
+        col("caid"),
+        col("zipped.list_of_h3_id").as("h3_id"),
+        col("zipped.h3_id_region").as("h3_id_region")
+      )
   }
 
   def mergeH3Region(df: DataFrame, params: FilterParametersType): DataFrame = {
