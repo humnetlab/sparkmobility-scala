@@ -18,7 +18,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{SaveMode, SparkSession}
-import sparkjobs.filtering.{FilterParameters, dataLoadFilter}
+import sparkjobs.filtering.{FilterParametersType, dataLoadFilter}
 import sparkjobs.locations.locationType
 import sparkjobs.staydetection.StayDetection
 import utils.FileUtils
@@ -37,16 +37,10 @@ class Pipelines extends Logging {
       inputFormat: String,
       delim: String,
       ifHeader: String,
-      columnNames: Map[String, String] = Map(
-        "_c0" -> "caid",
-        "_c2" -> "latitude",
-        "_c3" -> "longitude",
-        "_c5" -> "utc_timestamp"
-      ),
-      configFile: String = "src/main/resources/config/DefaultParameters.json"
+      columnNames: Map[String, String],
+      params: FilterParametersType
   ): Unit = {
     log.info("Creating spark session")
-    val params     = FilterParameters.fromJsonFile(configFile)
     val folderPath = s"$fullPath"
 
     log.info("folder path: " + folderPath)
@@ -197,10 +191,9 @@ class Pipelines extends Logging {
   def getHomeWorkLocation(
       folderPath: String,
       outputPath: String,
-      configFile: String = "src/main/resources/config/DefaultParameters.json"
+      params: FilterParametersType
   ): Unit = {
     log.info("Creating spark session")
-    val params              = FilterParameters.fromJsonFile(configFile)
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     Logger.getRootLogger.setLevel(Level.WARN)
     var dataDF = spark.read
