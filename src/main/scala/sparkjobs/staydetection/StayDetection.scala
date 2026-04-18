@@ -10,6 +10,7 @@ import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import sparkjobs.filtering.FilterParametersType
+import utils.GeoDistance
 
 import scala.jdk.CollectionConverters._
 import scala.util.Try
@@ -18,38 +19,9 @@ object StayDetection {
 
   val h3 = H3Core.newInstance()
 
-  object Haversine {
-    // Output distance in km
-    val R = 6372.8 // R, km
-
-    def distance(
-        lat1: Double,
-        lon1: Double,
-        lat2: Double,
-        lon2: Double
-    ): Double = {
-      val dLat = math.toRadians(lat2 - lat1)
-      val dLon = math.toRadians(lon2 - lon1)
-      val a =
-        math.pow(math.sin(dLat / 2), 2) + math.pow(math.sin(dLon / 2), 2) * math
-          .cos(math.toRadians(lat1)) * math.cos(math.toRadians(lat2))
-      val c = 2 * math.asin(math.sqrt(a))
-      R * c
-    }
-  }
-
   val latLonToH3UDF = udf((lat: Double, lon: Double, resolution: Int) => {
-    // val h3 = H3Core.newInstance()
     h3.latLngToCell(lat, lon, resolution)
-    // val h3IdDecimal = h3.latLngToCell(lat, lon, resolution)  // Returns H3 ID as a decimal Long
-    // val h3IdHex = java.lang.Long.toHexString(h3IdDecimal)  // Convert to hexadecimal string
-    // h3IdHex
   })
-
-  val haversineDistance =
-    udf((lat1: Double, lon1: Double, lat2: Double, lon2: Double) => {
-      Haversine.distance(lat1, lon1, lat2, lon2)
-    })
 
   val h3ToGeoUDF = udf((h3Index: Long) => {
     // val h3 = H3Core.newInstance()
@@ -74,12 +46,12 @@ object StayDetection {
       val xLon = row("longitude")
 
       if (
-        Haversine.distance(
+        GeoDistance.haversineMeters(
           centroidLat,
           centroidLon,
           xLat,
           xLon
-        ) * 1000 > threshold
+        ) > threshold
       ) {
         centroidLat = xLat
         centroidLon = xLon
@@ -230,15 +202,18 @@ object StayDetection {
         nextStartTime: Long,
         speedThreshold: Double
     ) => {
-      // val h3 = H3Core.newInstance()
       val centroid1 = h3.cellToLatLng(prevH3Id)
       val centroid2 = h3.cellToLatLng(nextH3Id)
-      val distance = Haversine.distance(
+      // Preserves the original scaling: legacy Haversine returned km and this
+      // call site divided by 1000 again. Converting meters -> that same scale
+      // is /1e6. The unit mismatch against speedThreshold is pre-existing and
+      // intentionally left untouched here so behavior is identical.
+      val distance = GeoDistance.haversineMeters(
         centroid1.lat,
         centroid1.lng,
         centroid2.lat,
         centroid2.lng
-      ) / 1000.0
+      ) / 1000000.0
       val timeDiff = (nextStartTime - prevEndTime) / 3600.0
       (distance / timeDiff) > speedThreshold
     }

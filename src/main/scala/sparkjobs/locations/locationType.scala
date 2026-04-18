@@ -6,16 +6,13 @@
 
 package sparkjobs.locations
 
-import com.uber.h3core.H3Core
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.expressions.{UserDefinedFunction, Window}
+import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
 import sparkjobs.filtering._
+import utils.GeoDistance
 
 object locationType extends Serializable {
-  object H3CoreSingleton extends Serializable {
-    @transient lazy val instance: H3Core = H3Core.newInstance()
-  }
   def homeLocation(data: DataFrame, params: FilterParametersType): DataFrame = {
     /*
      * Home locations of each user are labelled as type = 1.
@@ -87,36 +84,10 @@ object locationType extends Serializable {
       "left"
     )
 
-    val distanceToHome: UserDefinedFunction =
-      udf[java.lang.Double, String, String] {
-        (h3Index: String, homeIndex: String) =>
-          if (h3Index == null || homeIndex == null) {
-            null
-          } else {
-            val h3 =
-              H3CoreSingleton.instance // Access the singleton instance here
-            val geoCoord1 = h3.cellToLatLng(h3Index)
-            val geoCoord2 = h3.cellToLatLng(homeIndex)
-            val lat1      = geoCoord1.lat
-            val lon1      = geoCoord1.lng
-            val lat2      = geoCoord2.lat
-            val lon2      = geoCoord2.lng
-
-            val R    = 6371000 // Earth's radius in meters
-            val dLat = Math.toRadians(lat2 - lat1)
-            val dLon = Math.toRadians(lon2 - lon1)
-            val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2)
-            val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-            R * c
-          }
-      }
-
     val workFreqWithDistance = workFreqDF
       .withColumn(
         "distance_from_home",
-        distanceToHome(col("h3_index"), col("home_h3_index"))
+        GeoDistance.h3DistanceMetersUDF(col("h3_index"), col("home_h3_index"))
       )
       .withColumn(
         "distance_times_frequency",
