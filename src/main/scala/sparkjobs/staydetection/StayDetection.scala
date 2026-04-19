@@ -204,18 +204,19 @@ object StayDetection {
     ) => {
       val centroid1 = h3.cellToLatLng(prevH3Id)
       val centroid2 = h3.cellToLatLng(nextH3Id)
-      // Preserves the original scaling: legacy Haversine returned km and this
-      // call site divided by 1000 again. Converting meters -> that same scale
-      // is /1e6. The unit mismatch against speedThreshold is pre-existing and
-      // intentionally left untouched here so behavior is identical.
-      val distance = GeoDistance.haversineMeters(
+      // Speed in m/s, matching spatialThreshold which is also in meters.
+      // Previously distance was km divided by 1000 and timeDiff was hours,
+      // giving megameters/hour — under that scaling no realistic movement
+      // ever exceeded speedThreshold=6, so the passing filter was silently
+      // a no-op.
+      val distanceMeters = GeoDistance.haversineMeters(
         centroid1.lat,
         centroid1.lng,
         centroid2.lat,
         centroid2.lng
-      ) / 1000000.0
-      val timeDiff = (nextStartTime - prevEndTime) / 3600.0
-      (distance / timeDiff) > speedThreshold
+      )
+      val timeSeconds = (nextStartTime - prevEndTime).toDouble
+      (distanceMeters / timeSeconds) > speedThreshold
     }
   )
 
