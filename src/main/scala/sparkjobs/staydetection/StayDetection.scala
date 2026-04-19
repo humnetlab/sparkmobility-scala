@@ -272,7 +272,6 @@ object StayDetection {
         "stay_end_timestamp",
         col("stay_start_timestamp") + col("stay_duration")
       )
-      .cache()
 
     // Group by 'caid' and 'stay_index_h3' to aggregate stays in the same H3 cell
     val aggregated = DataWithEndTimestamp
@@ -334,10 +333,8 @@ object StayDetection {
           "h3_stay_lat",
           "h3_stay_lon"
         )
-      DataWithEndTimestamp.unpersist()
       (passing, stays)
     } else {
-      DataWithEndTimestamp.unpersist()
       val emptyDF = data_i.sparkSession.emptyDataFrame
       (emptyDF, aggregated)
     }
