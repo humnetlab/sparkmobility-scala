@@ -434,7 +434,6 @@ object StayDetection {
           ).otherwise(0)
         ).over(windowSpec)
       )
-      .cache()
 
     val result = dfWithLag
       .groupBy("caid", "h3_region_stay_id")
