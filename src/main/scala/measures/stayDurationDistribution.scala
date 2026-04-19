@@ -6,12 +6,12 @@
 
 package measures
 
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{col, _}
-import org.apache.spark.sql.{DataFrame, SparkSession}
 
 object stayDurationDistribution {
-  def duration(spark: SparkSession, data: DataFrame): DataFrame = {
+  def duration(data: DataFrame): DataFrame = {
     val hoursDF = data
       .withColumn(
         "stay_duration_in_seconds",

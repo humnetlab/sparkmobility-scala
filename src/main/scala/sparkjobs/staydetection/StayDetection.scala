@@ -39,7 +39,7 @@ object StayDetection {
     var centroidLat = firstRow.get("latitude")
     var centroidLon = firstRow.get("longitude")
     var stackCount  = 1
-    var result      = scala.collection.mutable.ListBuffer(1)
+    val result      = scala.collection.mutable.ListBuffer(1)
 
     iterator.foreach { row =>
       val xLat = row("latitude")
@@ -374,7 +374,7 @@ object StayDetection {
   })
 
 // Function to map H3 IDs to regions based on proximity and clustering
-  def getH3RegionMapping(df: DataFrame, spark: SparkSession): DataFrame = {
+  def getH3RegionMapping(df: DataFrame): DataFrame = {
 
     // Compute mean latitude, mean longitude, and number of stays for each H3 cell per caid
     val aggregatedDf = df

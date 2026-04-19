@@ -29,7 +29,6 @@ object SparkFactory extends Logging {
 
   private def getSparkConf(
       runMode: RunMode,
-      appName: String,
       configOverrides: Map[String, String]
   ): SparkConf = {
 
@@ -66,7 +65,7 @@ object SparkFactory extends Logging {
         SparkSession
           .builder()
           .appName(appName)
-          .config(getSparkConf(runMode, appName, configOverrides))
+          .config(getSparkConf(runMode, configOverrides))
           .getOrCreate()
       }
       case RunMode.PRODUCTION => {
@@ -74,7 +73,7 @@ object SparkFactory extends Logging {
           .builder()
           .appName(appName)
           // .enableHiveSupport()
-          .config(getSparkConf(runMode, appName, configOverrides))
+          .config(getSparkConf(runMode, configOverrides))
           .getOrCreate()
       }
     }

@@ -9,7 +9,7 @@ package measures
 import com.uber.h3core.H3Core
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{col, udf, _}
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.DataFrame
 import utils.GeoDistance
 
 import java.io.Serializable
@@ -26,7 +26,6 @@ object extractTrips {
     (a: String, b: String) => GeoDistance.h3DistanceMeters(a, b) / 1000.0
   }
   def getODMatrix(
-      spark: SparkSession,
       data: DataFrame,
       resolution: Int = 8,
       outputPath: String
@@ -118,7 +117,6 @@ object extractTrips {
       .save(outputPath + ODName)
   }
   def getHomeWorkMatrix(
-      spark: SparkSession,
       data: DataFrame,
       resolution: Int = 8,
       outputPath: String

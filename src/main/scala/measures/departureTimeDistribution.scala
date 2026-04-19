@@ -6,12 +6,12 @@
 
 package measures
 
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{col, _}
-import org.apache.spark.sql.{DataFrame, SparkSession}
 
 object departureTimeDistribution {
-  def departureTime(spark: SparkSession, data: DataFrame): DataFrame = {
+  def departureTime(data: DataFrame): DataFrame = {
     // Compute total via a window sum instead of a second `data.count()` action — one job instead of two,
     // and avoids recomputing `data` if it's not cached.
     val totalWindow = Window.partitionBy()

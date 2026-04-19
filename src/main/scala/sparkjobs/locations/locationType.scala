@@ -100,7 +100,7 @@ object locationType extends Serializable {
       .orderBy(desc("distance_times_frequency"))
 
     val rankedDF = workFreqWithDistance
-      .withColumn("rank", row_number.over(windowSpec))
+      .withColumn("rank", row_number().over(windowSpec))
 
     val workPlaceDF = rankedDF
       .filter(
