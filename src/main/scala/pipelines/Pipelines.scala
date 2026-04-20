@@ -99,15 +99,13 @@ class Pipelines extends Logging {
     dataDF = dataDF.repartition(col("caid"))
     log.info("Processing getStays")
     // 1 getStays
-    val (getStays) = StayDetection
+    val getStays = StayDetection
       .getStays(
         dataDF,
         spark,
         params.deltaT,
         params.spatialThreshold
       )
-      .cache()
-    getStays.count()
     // val getStaysCount = getStays.count() This takes too much time to process the count
     // log.info("getStays Count: " + getStaysCount)
     log.info("Processing mapToH3")
@@ -154,13 +152,14 @@ class Pipelines extends Logging {
     // // Note: downstream code can use `getStaysReloaded` instead of the original `getStays` to ensure disk-backed data is used.
 
     // 2 mapToH3
-    val (_, stays) = StayDetection.mapToH3(
+    val (_, staysUncached) = StayDetection.mapToH3(
       getStays,
       params.hexResolution,
       params.regionalTemporalThreshold,
       params.passing,
       params.speedThreshold
     )
+    val stays = staysUncached.cache()
     // 38330 stays
 
     log.info("Processing getH3RegionMapping")
@@ -176,7 +175,7 @@ class Pipelines extends Logging {
     // 4 mergeH3Region
     val staysH3Region =
       StayDetection.mergeH3Region(staysJoined, params)
-    getStays.unpersist()
+    stays.unpersist()
     // staysH3Region.show(10)
     log.info("Writing document")
     staysH3Region.write
