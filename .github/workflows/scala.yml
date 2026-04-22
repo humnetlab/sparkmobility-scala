@@ -1,9 +1,8 @@
 name: Scala CI
 on:
   push:
-    branches: [ main ]
+    branches: [ main, "improvements/**" ]
   pull_request:
-    branches: [ main ]
 jobs:
   build:
     strategy:
@@ -11,7 +10,7 @@ jobs:
       matrix:
         include:
           - java: 11
-          - java: 8
+          - java: 17
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
