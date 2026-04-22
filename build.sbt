@@ -1,7 +1,7 @@
 // Keep in lockstep with sparkmobility Python package version (pyproject.toml). The emitted JAR name
 // encodes this version so Python's ensure_jar() can pull a matching artifact from the GitHub Release
 // published by .github/workflows/release.yml on tag push.
-ThisBuild / version := "0.1.0"
+ThisBuild / version := "1.0.0"
 
 ThisBuild / scalaVersion := "2.13.10"
 

@@ -115,7 +115,7 @@ object FileUtils extends Logging {
       ifHeader: String,
       spark: SparkSession
   ): DataFrame = {
-    log.info(s"Reading Parquet data from path: $fullPath")
+    log.info(s"Reading CSV data from path: $fullPath")
 
     val path = new File(fullPath)
     val dataDF = if (path.isFile) {
@@ -138,7 +138,7 @@ object FileUtils extends Logging {
       schema: StructType,
       spark: SparkSession
   ): DataFrame = {
-    log.info(s"Reading Parquet data from path: $fullPath")
+    log.info(s"Reading text data from path: $fullPath")
 
     val path = new File(fullPath)
     val dataDF = if (path.isFile) {

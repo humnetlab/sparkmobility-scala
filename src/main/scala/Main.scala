@@ -20,9 +20,15 @@ object Main extends Logging {
       System.err.println(usage)
       sys.exit(2)
     }
-    val input      = args(0)
-    val output     = args(1)
-    val resolution = args(2).toInt
+    val input  = args(0)
+    val output = args(1)
+    val resolution = args(2).toIntOption.getOrElse {
+      System.err.println(
+        s"Invalid h3-resolution '${args(2)}'; expected an integer."
+      )
+      System.err.println(usage)
+      sys.exit(2)
+    }
 
     log.info("Creating spark session and running the job")
     val pipe = new Pipelines()

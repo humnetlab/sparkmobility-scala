@@ -9,6 +9,7 @@ import com.uber.h3core.H3Core
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.slf4j.LoggerFactory
 import sparkjobs.filtering.FilterParametersType
 import utils.GeoDistance
 
@@ -16,6 +17,9 @@ import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object StayDetection {
+
+  @transient private lazy val logger =
+    LoggerFactory.getLogger(getClass.getName.stripSuffix("$"))
 
   // Case classes used by getStays's typed Dataset flatMap. Declared at the object
   // level so Encoder derivation works (anonymous classes inside a def would not).
@@ -53,7 +57,7 @@ object StayDetection {
       threshold: Double = 300
   ): Iterator[Int] = {
     val firstRow = Try(iterator.next()).toOption
-    if (firstRow.isEmpty) return Iterator(1)
+    if (firstRow.isEmpty) return Iterator.empty
 
     var centroidLat = firstRow.get._1
     var centroidLon = firstRow.get._2
@@ -372,7 +376,7 @@ object StayDetection {
         result += h3LookupDict(h3_id)
       } catch {
         case _: NumberFormatException =>
-          println(s"Failed to parse H3 index: $h3_id")
+          logger.warn(s"Failed to parse H3 index: $h3_id")
       }
     }
     result.toList
