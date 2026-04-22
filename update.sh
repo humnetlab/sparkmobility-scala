@@ -14,5 +14,6 @@ sbt compile
 echo "Step 2: Assembling JAR with sbt"
 sbt assembly
 
-echo "Step 3: Running Python script to push to GCS"
-python3 pushToGCS.py
+# To publish: bump ThisBuild / version in build.sbt, commit, then:
+#     git tag v<version> && git push origin v<version>
+# .github/workflows/release.yml builds and attaches the JAR to the release.
