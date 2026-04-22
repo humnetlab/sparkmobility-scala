@@ -8,7 +8,7 @@ package sparkjobs.staydetection
 import com.uber.h3core.H3Core
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import sparkjobs.filtering.FilterParametersType
 import utils.GeoDistance
 
@@ -16,6 +16,25 @@ import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object StayDetection {
+
+  // Case classes used by getStays's typed Dataset flatMap. Declared at the object
+  // level so Encoder derivation works (anonymous classes inside a def would not).
+  final case class SequentialPoint(
+      row_in_group: Int,
+      latitude: Double,
+      longitude: Double
+  )
+  final case class SequentialGroup(
+      caid: String,
+      temporal_stay_id: Long,
+      group_data: Seq[SequentialPoint]
+  )
+  final case class StayFlagRow(
+      caid: String,
+      temporal_stay_id: Long,
+      row_in_group: Int,
+      distance_threshold: Int
+  )
 
   val h3 = H3Core.newInstance()
 
@@ -30,21 +49,18 @@ object StayDetection {
   })
 
   def sequentialStayDetection(
-      iterator: Iterator[Map[String, Double]],
+      iterator: Iterator[(Double, Double)],
       threshold: Double = 300
   ): Iterator[Int] = {
     val firstRow = Try(iterator.next()).toOption
     if (firstRow.isEmpty) return Iterator(1)
 
-    var centroidLat = firstRow.get("latitude")
-    var centroidLon = firstRow.get("longitude")
+    var centroidLat = firstRow.get._1
+    var centroidLon = firstRow.get._2
     var stackCount  = 1
     val result      = scala.collection.mutable.ListBuffer(1)
 
-    iterator.foreach { row =>
-      val xLat = row("latitude")
-      val xLon = row("longitude")
-
+    iterator.foreach { case (xLat, xLon) =>
       if (
         GeoDistance.haversineMeters(
           centroidLat,
@@ -104,41 +120,33 @@ object StayDetection {
       .withColumn("row_in_group", row_number().over(groupWindow))
       .cache()
 
-    // Perform a flatMap transformation to apply the sequential stay detection.
-    // We carry row_in_group through the group so the output position is deterministic.
-    val resultRDD = dfWithStayId
-      .groupBy("caid", "temporal_stay_id")
-      .agg(
-        collect_list(struct("row_in_group", "latitude", "longitude"))
-          .alias("group_data")
-      )
-      .rdd
-      .flatMap { row =>
-        val caid           = row.get(0).toString
-        val temporalStayId = row.getLong(1)
-        // Sort by row_in_group so iteration order matches the original time order regardless of
-        // whatever ordering collect_list happened to produce.
-        val ordered = row
-          .getAs[scala.collection.Seq[Row]]("group_data")
-          .toSeq
-          .sortBy(_.getAs[Int]("row_in_group"))
-        val groupData = ordered.map { r =>
-          Map(
-            "latitude"  -> r.getAs[Double]("latitude"),
-            "longitude" -> r.getAs[Double]("longitude")
-          )
-        }
-        val rowIds = ordered.map(_.getAs[Int]("row_in_group"))
-        rowIds.iterator
-          .zip(sequentialStayDetection(groupData.iterator, threshold))
-          .map { case (rowId, flag) =>
-            (caid, temporalStayId, rowId, flag)
-          }
-      }
     import spark.implicits._
 
-    val listDF = resultRDD
-      .toDF("caid", "temporal_stay_id", "row_in_group", "distance_threshold")
+    // Typed Dataset flatMap — stays in Catalyst encoders end-to-end, no RDD[Row] round-trip.
+    // sort_array on the first struct field (row_in_group) gives deterministic iteration order
+    // in SQL rather than Scala, and row_in_group is unique per group so there are no ties.
+    val groupedDS = dfWithStayId
+      .groupBy("caid", "temporal_stay_id")
+      .agg(
+        sort_array(
+          collect_list(struct("row_in_group", "latitude", "longitude"))
+        )
+          .alias("group_data")
+      )
+      .as[SequentialGroup]
+
+    val listDF = groupedDS
+      .flatMap { g =>
+        val pts = g.group_data
+        val flags = sequentialStayDetection(
+          pts.iterator.map(p => (p.latitude, p.longitude)),
+          threshold
+        ).toList
+        pts.iterator.zip(flags.iterator).map { case (p, flag) =>
+          StayFlagRow(g.caid, g.temporal_stay_id, p.row_in_group, flag)
+        }
+      }
+      .toDF()
 
     // Join on the stable (caid, temporal_stay_id, row_in_group) key — no monotonic ID dependency.
     val joinedDF = dfWithStayId

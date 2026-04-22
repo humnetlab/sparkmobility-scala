@@ -8,7 +8,7 @@ package measures
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
 
-object locationDistribution {
+object LocationDistribution {
   def locate(data: DataFrame): DataFrame = {
     val location = data
       .groupBy("caid")

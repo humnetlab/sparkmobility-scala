@@ -1,5 +1,6 @@
 // Keep in lockstep with sparkmobility Python package version (pyproject.toml). The emitted JAR name
-// encodes this version so Python's ensure_jar() can pull a matching artifact from GCS.
+// encodes this version so Python's ensure_jar() can pull a matching artifact from the GitHub Release
+// published by .github/workflows/release.yml on tag push.
 ThisBuild / version := "0.1.0"
 
 ThisBuild / scalaVersion := "2.13.10"
@@ -20,31 +21,45 @@ ThisBuild / scalafixConfig := Some(
 
 lazy val root = (project in file("."))
   .settings(
-    // assemblyPackageScala / assembleArtifact := false,
-    // assemblyPackageDependency / assembleArtifact := false,
     assembly / mainClass := Some("pipelines.Main"),
     name                 := "sparkmobility",
 
-    // START OF SCALAFIX FIX
-    // These options are required for the OrganizeImports and RemoveUnused Scalafix rules in Scala 2.13.x
+    // Required by the OrganizeImports and RemoveUnused Scalafix rules on Scala 2.13.x.
     scalacOptions ++= Seq(
-      "-Wunused:imports", // Required for OrganizeImports.removeUnused (Error E0)
-      "-Wunused" // Required for RemoveUnused (Error E1)
+      "-Wunused:imports",
+      "-Wunused"
     ),
-    // END OF SCALAFIX FIX
-
     libraryDependencies ++= Seq(
-      "org.scala-lang"    % "scala-library" % scalaVersion.value,
-      "org.apache.spark" %% "spark-core"    % "3.5.0",
-      "org.apache.spark" %% "spark-sql"     % "3.5.0",
-      "com.uber" % "h3" % "4.1.1", // 4.1.1, 3.6.3, 3.7.1, 3.7.3
+      "org.scala-lang"    % "scala-library"    % scalaVersion.value,
+      "org.apache.spark" %% "spark-core"       % "3.5.0",
+      "org.apache.spark" %% "spark-sql"        % "3.5.0",
+      "com.uber"          % "h3"               % "4.1.1",
       "org.plotly-scala" %% "plotly-render"    % "0.8.2",
       "org.datasyslab"    % "geotools-wrapper" % "1.6.0-28.2",
       "ch.qos.logback"    % "logback-classic"  % "1.2.10",
       "org.json4s"       %% "json4s-core"      % "3.6.11",
-      "org.json4s"       %% "json4s-native"    % "3.6.11"
-
-      // "org.apache.hadoop" % "hadoop-client-api" % "3.3.4"
+      "org.json4s"       %% "json4s-native"    % "3.6.11",
+      "org.scalameta"    %% "munit"            % "1.0.0" % Test
+    ),
+    testFrameworks += new TestFramework("munit.Framework"),
+    // Spark 3.5 touches sun.nio.ch.DirectBuffer reflectively; on JDK 17+ the module system
+    // blocks that unless we explicitly open the relevant packages. Forking ensures the JVM
+    // that actually runs the tests picks these up.
+    Test / fork := true,
+    Test / javaOptions ++= Seq(
+      "--add-opens=java.base/java.lang=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+      "--add-opens=java.base/java.io=ALL-UNNAMED",
+      "--add-opens=java.base/java.net=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED",
+      "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED",
+      "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
+      "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED"
     )
   )
 

@@ -10,7 +10,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{col, _}
 
-object stayDurationDistribution {
+object StayDurationDistribution {
   def duration(data: DataFrame): DataFrame = {
     val hoursDF = data
       .withColumn(

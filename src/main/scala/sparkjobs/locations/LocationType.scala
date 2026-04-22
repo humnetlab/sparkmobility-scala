@@ -12,7 +12,7 @@ import org.apache.spark.sql.functions._
 import sparkjobs.filtering._
 import utils.GeoDistance
 
-object locationType extends Serializable {
+object LocationType extends Serializable {
   def homeLocation(data: DataFrame, params: FilterParametersType): DataFrame = {
     /*
      * Home locations of each user are labelled as type = 1.

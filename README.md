@@ -24,7 +24,7 @@ Whether modifying the Scala core of the project or running it, you must compile 
     sbt compile
     sbt assembly
     ```
-    This process creates a `.jar` file that should be submitted to the Spark cluster. Ideally, place it in the root directory of this project. You will need the PATH to this jar in the next steps.
+    This process creates a `target/scala-2.13/sparkmobility-<version>.jar`. The Python package downloads a matching artifact from the repo's GitHub Releases into `sparkmobility/lib/`, so you don't need to copy the JAR anywhere for the normal Python workflow. Note the path only if you intend to `spark-submit` the JAR directly.
 
 ## Setup and Installation of Spark
 
@@ -89,7 +89,21 @@ Once edited you must follow the steps below to compile and package the code.
 sbt compile
 sbt assembly
 ```
-This process creates a .jar file(Usually under target/scala-2.13/ dir) that should be submitted to the Spark cluster. 
+This process creates a .jar file(Usually under target/scala-2.13/ dir) that should be submitted to the Spark cluster.
+
+### For library development
+
+The standard dev loop is `./update.sh`, which runs the scalafmt formatters, compiles, and builds the assembly JAR. To cut a new release:
+
+1. Bump `ThisBuild / version` in [build.sbt](build.sbt) to match the sparkmobility Python package's `pyproject.toml`. The two versions MUST stay in lockstep — `ensure_jar()` in the Python package downloads `sparkmobility-<version>.jar` by string match.
+2. Commit and push.
+3. Tag and push the tag: `git tag v<version> && git push origin v<version>`.
+
+The [`.github/workflows/release.yml`](.github/workflows/release.yml) workflow verifies that the tag matches `build.sbt`, builds the assembly, and attaches the JAR to a GitHub Release. Python's `ensure_jar()` pulls from that release on first import.
+
+### Python integration
+
+The Python package (`sparkmobility` on PyPI / [humnetlab/sparkmobility](https://github.com/humnetlab/sparkmobility)) calls into the JAR via py4j, using [`pipelines.PyEntryPoint`](src/main/scala/pipelines/PyEntryPoint.scala) as the only supported entry surface. Methods there take primitive args plus JSON strings — no Scala collections cross the bridge. Changing a `PyEntryPoint` signature is a breaking change for Python callers and requires a coordinated PR on both repos.
 
 ### Running the Project
 To run the project, you can use the following command:
@@ -103,8 +117,11 @@ spark-submit \
   --executor-memory <MEMORY>g \
   --conf "spark.driver.extraJavaOptions=-Dlog4j.rootLogger=WARN,console" \
   --conf "spark.executor.extraJavaOptions=-Dlog4j.rootLogger=WARN,console" \
-  /path/to/your/application.jar
-  ```
+  /path/to/your/application.jar \
+  <input-parquet> <output-dir> <h3-resolution>
+```
+
+`Main` is the OD-matrix entry point used for standalone `spark-submit`; the primary consumer today is the Python package via `PyEntryPoint` (see [Python integration](#python-integration)).
 
 For more information on sbt, visit the [official sbt documentation](https://www.scala-sbt.org/1.x/docs/).
 

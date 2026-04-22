@@ -9,7 +9,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
 
-object dailyVisitedLocation {
+object DailyVisitedLocation {
   def visit(data: DataFrame): DataFrame = {
     // Retrieve date from local time
     val dataWithDate = data.withColumn("date", to_date(col("local_time")))

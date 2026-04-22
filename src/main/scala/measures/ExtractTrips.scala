@@ -6,18 +6,13 @@
 
 package measures
 
-import com.uber.h3core.H3Core
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{col, udf, _}
 import utils.GeoDistance
+import utils.GeoDistance.H3CoreSingleton
 
-import java.io.Serializable
-
-object extractTrips {
-  object H3CoreSingleton extends Serializable {
-    @transient lazy val instance: H3Core = H3Core.newInstance()
-  }
+object ExtractTrips {
 
   // Output column `distance` is in kilometers — callers of the written
   // parquet read it in km, so we convert from the utility's canonical
@@ -45,7 +40,6 @@ object extractTrips {
       "distance",
       h3DistanceKmUDF(col("h3_index"), col("next_h3_index"))
     )
-    H3Core.newInstance()
     val h3ToParentUDF = udf((h3Index: String) => {
       if (h3Index == null) {
         null // Return null if the input h3Index is null
@@ -121,7 +115,6 @@ object extractTrips {
       resolution: Int = 8,
       outputPath: String
   ): Unit = {
-    H3Core.newInstance()
     val h3ToParentUDF = udf((h3Index: String) => {
       if (h3Index == null) {
         null // Return null if the input h3Index is null

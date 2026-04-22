@@ -107,3 +107,8 @@ venv.bak/
 
 # timegeo
 parameters.json
+
+# Non-README markdown (planning / follow-up notes kept local)
+*.md
+!README.md
+!docs/**/*.md

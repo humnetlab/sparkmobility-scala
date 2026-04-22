@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// src/main/scala/filter/dataProcessor.scala
 package sparkjobs.filtering
 
 import org.apache.spark.sql.DataFrame
@@ -13,7 +12,7 @@ import org.apache.spark.sql.functions._
 import java.time.format.DateTimeFormatter
 import java.time.{LocalDateTime, ZoneOffset}
 
-object dataLoadFilter {
+object DataLoadFilter {
   def castToUTCTimestamp(
       df: DataFrame,
       columnName: String,
