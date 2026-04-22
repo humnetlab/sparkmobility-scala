@@ -23,7 +23,7 @@ lazy val root = (project in file("."))
     // assemblyPackageScala / assembleArtifact := false,
     // assemblyPackageDependency / assembleArtifact := false,
     assembly / mainClass := Some("pipelines.Main"),
-    name                 := "timegeo_1",
+    name                 := "sparkmobility",
 
     // START OF SCALAFIX FIX
     // These options are required for the OrganizeImports and RemoveUnused Scalafix rules in Scala 2.13.x
