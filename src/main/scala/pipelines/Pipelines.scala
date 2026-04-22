@@ -115,12 +115,13 @@ class Pipelines extends Logging {
     val h3RegionMapping = StayDetection.getH3RegionMapping(stays)
 
     log.info("Processing h3RegionMapping")
-    // h3RegionMapping is ~one row per (caid, h3_id) — much smaller than stays.
-    // Broadcasting skips a wide shuffle on stays; if the broadcast side grows
-    // past spark.sql.autoBroadcastJoinThreshold, AQE downgrades to SMJ so
-    // correctness is always safe.
+    // Let Spark pick the join strategy: its auto-broadcast threshold plus AQE
+    // SMJ->Broadcast promotion handles the small-mapping case, while large
+    // h3RegionMapping tables (seen on >1e8-row inputs) stay as SMJ. An
+    // explicit broadcast() hint here would force BroadcastExchangeExec to
+    // collect the right side to the driver and fail with maxResultSize.
     val staysJoined = stays
-      .join(broadcast(h3RegionMapping), Seq("caid", "h3_id"), "left")
+      .join(h3RegionMapping, Seq("caid", "h3_id"), "left")
     log.info("Processing mergeH3Region")
 
     // 4 mergeH3Region
