@@ -7,6 +7,7 @@
 package sparkjobs.filtering
 
 import munit.FunSuite
+import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Row, SparkSession}
 
@@ -108,6 +109,29 @@ class DataLoadFilterSpec extends FunSuite {
       )
       .collect()
     assertEquals(out.length, 1)
+  }
+
+  test(
+    "parseCustomUtcUdf parses a non-canonical format as UTC regardless of session TZ"
+  ) {
+    spark.conf.set("spark.sql.session.timeZone", "America/Los_Angeles")
+    try {
+      val schema2 = StructType(
+        Seq(StructField("t", StringType, nullable = false))
+      )
+      val rows  = Seq(Row("01/01/2024 00:30:00")).asJava
+      val input = spark.createDataFrame(rows, schema2)
+      val out = input
+        .withColumn(
+          "epoch",
+          DataLoadFilter.parseCustomUtcUdf("MM/dd/yyyy HH:mm:ss")(col("t"))
+        )
+        .collect()
+      // 2024-01-01 00:30:00 UTC == epoch 1704069000
+      assertEquals(out(0).getLong(1), 1704069000L)
+    } finally {
+      spark.conf.set("spark.sql.session.timeZone", "UTC")
+    }
   }
 
   test("loadFilteredData filters by lat/lon bounding box") {

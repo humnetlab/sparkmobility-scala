@@ -118,17 +118,13 @@ object FileUtils extends Logging {
     log.info(s"Reading CSV data from path: $fullPath")
 
     val path = new File(fullPath)
-    val dataDF = if (path.isFile) {
-      spark.read
-        .option("inferSchema", "true")
-        .csv(fullPath)
-    } else {
-      spark.read
-        .option("inferSchema", "true")
-        .option("sep", delim)
-        .option("header", ifHeader)
-        .csv(s"$fullPath/*.gz")
-    }
+    val reader = spark.read
+      .option("inferSchema", "true")
+      .option("sep", delim)
+      .option("header", ifHeader)
+    val dataDF =
+      if (path.isFile) reader.csv(fullPath)
+      else reader.csv(s"$fullPath/*.gz")
 
     dataDF
   }

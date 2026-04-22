@@ -60,26 +60,23 @@ class Pipelines extends Logging {
       }.toSeq: _*
     )
 
+    // For non-UNIX inputs, parse the string as UTC wall-clock and hand off
+    // epoch seconds (a Long) to DataLoadFilter.castTimestamp, which then takes
+    // the timestamp_seconds branch — session-TZ-independent. Note: we do NOT
+    // use Spark's unix_timestamp() here because it parses in the session TZ,
+    // which would shift the window under non-UTC sessions. We also don't
+    // round-trip through to_timestamp/from_unixtime: castTimestamp would
+    // re-parse the session-TZ-formatted string as UTC and double-shift.
     if (timeFormat != "UNIX") {
-      dataDF = dataDF
-        .withColumn(
-          "utc_timestamp",
-          unix_timestamp(
-            col("utc_timestamp"),
-            timeFormat
-          ) // convert timestamp to Unix time
-        )
+      dataDF = dataDF.withColumn(
+        "utc_timestamp",
+        DataLoadFilter.parseCustomUtcUdf(timeFormat)(col("utc_timestamp"))
+      )
     }
     dataDF = dataDF.na
       .drop(Seq("latitude", "longitude", "utc_timestamp"))
       .withColumn("latitude", col("latitude").cast(DoubleType))
       .withColumn("longitude", col("longitude").cast(DoubleType))
-      .withColumn("utc_epoch_s", col("utc_timestamp").cast(LongType))
-      .withColumn(
-        "utc_timestamp",
-        to_timestamp(from_unixtime(col("utc_epoch_s")))
-      ) // TimestampType (UTC)
-      .drop("utc_epoch_s")
 
     dataDF = DataLoadFilter.loadFilteredData(dataDF, params)
 

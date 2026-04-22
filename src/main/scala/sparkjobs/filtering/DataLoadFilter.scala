@@ -30,6 +30,21 @@ object DataLoadFilter {
     if (s == null) null else parseUtc(s)
   }
 
+  // Factory so callers can parse non-canonical formats (e.g. "MM/dd/yyyy
+  // HH:mm:ss") as UTC wall-clock without going through Spark's session-TZ-
+  // dependent unix_timestamp(). Returns a Long (epoch seconds) so downstream
+  // castTimestamp consumes it via the timestamp_seconds branch.
+  def parseCustomUtcUdf(timeFormat: String) = {
+    val fmt = DateTimeFormatter.ofPattern(timeFormat)
+    udf { (s: String) =>
+      if (s == null) null.asInstanceOf[java.lang.Long]
+      else
+        java.lang.Long.valueOf(
+          LocalDateTime.parse(s, fmt).toEpochSecond(ZoneOffset.UTC)
+        )
+    }
+  }
+
   def castTimestamp(c: Column): Column =
     when(
       c.cast("string").rlike("^[0-9]+$"),
