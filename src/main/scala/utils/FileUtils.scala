@@ -64,8 +64,7 @@ object FileUtils extends Logging {
   def saveFile(
       lines: List[String],
       directory: String,
-      fileName: String,
-      writePermissions: Boolean = false
+      fileName: String
   ): Unit = {
 
     if (Directory(directory).exists) {

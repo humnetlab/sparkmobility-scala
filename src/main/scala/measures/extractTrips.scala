@@ -7,10 +7,10 @@
 package measures
 
 import com.uber.h3core.H3Core
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{col, udf, _}
-import org.apache.spark.sql.{DataFrame, SparkSession}
-import utils.H3DistanceUtils
+import utils.GeoDistance
 
 import java.io.Serializable
 
@@ -18,8 +18,14 @@ object extractTrips {
   object H3CoreSingleton extends Serializable {
     @transient lazy val instance: H3Core = H3Core.newInstance()
   }
+
+  // Output column `distance` is in kilometers — callers of the written
+  // parquet read it in km, so we convert from the utility's canonical
+  // meters at the call site rather than at the library boundary.
+  private val h3DistanceKmUDF = udf[Double, String, String] {
+    (a: String, b: String) => GeoDistance.h3DistanceMeters(a, b) / 1000.0
+  }
   def getODMatrix(
-      spark: SparkSession,
       data: DataFrame,
       resolution: Int = 8,
       outputPath: String
@@ -35,12 +41,9 @@ object extractTrips {
     val dataWithNext = data
       .withColumn("next_h3_index", lead("h3_index", 1).over(windowSpec))
     val filteredData = dataWithNext.filter(col("next_h3_index").isNotNull)
-    // add distance in kilometers
-    val distanceUDF = udf[Double, String, String](H3DistanceUtils.distance)
-
     val dataWithDistance = filteredData.withColumn(
       "distance",
-      distanceUDF(col("h3_index"), col("next_h3_index"))
+      h3DistanceKmUDF(col("h3_index"), col("next_h3_index"))
     )
     H3Core.newInstance()
     val h3ToParentUDF = udf((h3Index: String) => {
@@ -97,7 +100,7 @@ object extractTrips {
 
     val odCountDistance = odCount.withColumn(
       "distance",
-      distanceUDF(col("parent_origin"), col("parent_destination"))
+      h3DistanceKmUDF(col("parent_origin"), col("parent_destination"))
     )
 
     val tripName = "/trips.parquet"
@@ -114,7 +117,6 @@ object extractTrips {
       .save(outputPath + ODName)
   }
   def getHomeWorkMatrix(
-      spark: SparkSession,
       data: DataFrame,
       resolution: Int = 8,
       outputPath: String
@@ -129,8 +131,6 @@ object extractTrips {
         h3.cellToParentAddress(h3Index, resolution)
       }
     })
-    val distanceUDF = udf[Double, String, String](H3DistanceUtils.distance)
-
     val result = data
       .select(
         col("caid"),
@@ -161,7 +161,7 @@ object extractTrips {
     // Calculate distance
     val odDistance = resultWithParent.withColumn(
       "distance",
-      distanceUDF(col("origin"), col("destination"))
+      h3DistanceKmUDF(col("origin"), col("destination"))
     )
 
     odDistance.write

@@ -18,7 +18,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{SaveMode, SparkSession}
-import sparkjobs.filtering.{FilterParameters, dataLoadFilter}
+import sparkjobs.filtering.{FilterParametersType, dataLoadFilter}
 import sparkjobs.locations.locationType
 import sparkjobs.staydetection.StayDetection
 import utils.FileUtils
@@ -37,16 +37,10 @@ class Pipelines extends Logging {
       inputFormat: String,
       delim: String,
       ifHeader: String,
-      columnNames: Map[String, String] = Map(
-        "_c0" -> "caid",
-        "_c2" -> "latitude",
-        "_c3" -> "longitude",
-        "_c5" -> "utc_timestamp"
-      ),
-      configFile: String = "src/main/resources/config/DefaultParameters.json"
+      columnNames: Map[String, String],
+      params: FilterParametersType
   ): Unit = {
     log.info("Creating spark session")
-    val params     = FilterParameters.fromJsonFile(configFile)
     val folderPath = s"$fullPath"
 
     log.info("folder path: " + folderPath)
@@ -92,7 +86,7 @@ class Pipelines extends Logging {
       ) // TimestampType (UTC)
       .drop("utc_epoch_s")
 
-    dataDF = dataLoadFilter.loadFilteredData(spark, dataDF, params)
+    dataDF = dataLoadFilter.loadFilteredData(dataDF, params)
 
     dataDF = dataDF.select(
       col("caid"),
@@ -105,15 +99,13 @@ class Pipelines extends Logging {
     dataDF = dataDF.repartition(col("caid"))
     log.info("Processing getStays")
     // 1 getStays
-    val (getStays) = StayDetection
+    val getStays = StayDetection
       .getStays(
         dataDF,
         spark,
         params.deltaT,
         params.spatialThreshold
       )
-      .cache()
-    getStays.count()
     // val getStaysCount = getStays.count() This takes too much time to process the count
     // log.info("getStays Count: " + getStaysCount)
     log.info("Processing mapToH3")
@@ -160,18 +152,19 @@ class Pipelines extends Logging {
     // // Note: downstream code can use `getStaysReloaded` instead of the original `getStays` to ensure disk-backed data is used.
 
     // 2 mapToH3
-    val (passingResult, stays) = StayDetection.mapToH3(
+    val (_, staysUncached) = StayDetection.mapToH3(
       getStays,
       params.hexResolution,
       params.regionalTemporalThreshold,
       params.passing,
       params.speedThreshold
     )
+    val stays = staysUncached.cache()
     // 38330 stays
 
     log.info("Processing getH3RegionMapping")
     // 3 getH3RegionMapping
-    val h3RegionMapping = StayDetection.getH3RegionMapping(stays, spark)
+    val h3RegionMapping = StayDetection.getH3RegionMapping(stays)
 
     log.info("Processing h3RegionMapping")
     // h3RegionMapping
@@ -182,7 +175,7 @@ class Pipelines extends Logging {
     // 4 mergeH3Region
     val staysH3Region =
       StayDetection.mergeH3Region(staysJoined, params)
-    getStays.unpersist()
+    stays.unpersist()
     // staysH3Region.show(10)
     log.info("Writing document")
     staysH3Region.write
@@ -197,10 +190,9 @@ class Pipelines extends Logging {
   def getHomeWorkLocation(
       folderPath: String,
       outputPath: String,
-      configFile: String = "src/main/resources/config/DefaultParameters.json"
+      params: FilterParametersType
   ): Unit = {
     log.info("Creating spark session")
-    val params              = FilterParameters.fromJsonFile(configFile)
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     Logger.getRootLogger.setLevel(Level.WARN)
     var dataDF = spark.read
@@ -240,8 +232,8 @@ class Pipelines extends Logging {
   ): Unit = {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
-    var dataDF              = FileUtils.readParquetData(folderPath, spark)
-    extractTrips.getHomeWorkMatrix(spark, dataDF, resolution, outputPath)
+    val dataDF              = FileUtils.readParquetData(folderPath, spark)
+    extractTrips.getHomeWorkMatrix(dataDF, resolution, outputPath)
   }
 
   def getFullODMatrix(
@@ -268,42 +260,48 @@ class Pipelines extends Logging {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     Logger.getRootLogger.setLevel(Level.WARN)
-    var dataDF = FileUtils.readParquetData(folderPath, spark)
-    extractTrips.getODMatrix(spark, dataDF, resolution, outputPath)
+    val dataDF = FileUtils.readParquetData(folderPath, spark)
+    extractTrips.getODMatrix(dataDF, resolution, outputPath)
   }
 
-  def getDailyVisitedLocation(folderPath: String, outputPath: String) {
+  def getDailyVisitedLocation(folderPath: String, outputPath: String): Unit = {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
-    var dataDF              = FileUtils.readParquetData(folderPath, spark)
-    val resultDF            = dailyVisitedLocation.visit(spark, dataDF)
+    val dataDF              = FileUtils.readParquetData(folderPath, spark)
+    val resultDF            = dailyVisitedLocation.visit(dataDF)
     resultDF.write
       .mode(SaveMode.Overwrite)
       .parquet(outputPath)
   }
-  def getLocationDistribution(folderPath: String, outputPath: String) {
+  def getLocationDistribution(folderPath: String, outputPath: String): Unit = {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
-    var dataDF              = FileUtils.readParquetData(folderPath, spark)
-    val resultDF            = locationDistribution.locate(spark, dataDF)
+    val dataDF              = FileUtils.readParquetData(folderPath, spark)
+    val resultDF            = locationDistribution.locate(dataDF)
     resultDF.write
       .mode(SaveMode.Overwrite)
       .parquet(outputPath)
   }
-  def getStayDurationDistribution(folderPath: String, outputPath: String) {
+  def getStayDurationDistribution(
+      folderPath: String,
+      outputPath: String
+  ): Unit = {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
-    var dataDF              = FileUtils.readParquetData(folderPath, spark)
-    val resultDF            = stayDurationDistribution.duration(spark, dataDF)
+    val dataDF              = FileUtils.readParquetData(folderPath, spark)
+    val resultDF            = stayDurationDistribution.duration(dataDF)
     resultDF.write
       .mode(SaveMode.Overwrite)
       .parquet(outputPath)
   }
-  def getDepartureTimeDistribution(folderPath: String, outputPath: String) {
+  def getDepartureTimeDistribution(
+      folderPath: String,
+      outputPath: String
+  ): Unit = {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
-    var dataDF              = FileUtils.readParquetData(folderPath, spark)
-    val resultDF = departureTimeDistribution.departureTime(spark, dataDF)
+    val dataDF              = FileUtils.readParquetData(folderPath, spark)
+    val resultDF            = departureTimeDistribution.departureTime(dataDF)
     resultDF.write
       .mode(SaveMode.Overwrite)
       .parquet(outputPath)

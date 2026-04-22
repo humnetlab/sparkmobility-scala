@@ -33,11 +33,14 @@ case class FilterParametersType(
 object FilterParameters {
   implicit val formats: Formats = Serialization.formats(NoTypeHints)
 
+  def fromJsonString(jsonString: String): FilterParametersType =
+    parse(jsonString).extract[FilterParametersType]
+
   def fromJsonFile(filePath: String): FilterParametersType = {
     val source = Source.fromFile(filePath)
     val jsonString =
       try source.mkString
       finally source.close()
-    parse(jsonString).extract[FilterParametersType]
+    fromJsonString(jsonString)
   }
 }

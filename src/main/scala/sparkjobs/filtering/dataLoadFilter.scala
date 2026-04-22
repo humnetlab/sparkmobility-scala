@@ -7,8 +7,8 @@
 // src/main/scala/filter/dataProcessor.scala
 package sparkjobs.filtering
 
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import java.time.format.DateTimeFormatter
 import java.time.{LocalDateTime, ZoneOffset}
@@ -39,13 +39,12 @@ object dataLoadFilter {
   }
 
   def loadFilteredData(
-      spark: SparkSession,
       df: DataFrame,
       params: FilterParametersType
   ): DataFrame = {
 
     val dfCast                       = castToUTCTimestamp(df, "utc_timestamp")
-    val (startTimeUnix, endTimeUnix) = timeFrame(spark, params)
+    val (startTimeUnix, endTimeUnix) = timeFrame(params)
     val bottomLatitude               = params.latitude(0)
     val topLatitude                  = params.latitude(1)
     val leftLongitude                = params.longitude(0)
@@ -64,7 +63,6 @@ object dataLoadFilter {
   }
 
   def timeFrame(
-      spark: SparkSession,
       params: FilterParametersType
   ): (String, String) = {
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")

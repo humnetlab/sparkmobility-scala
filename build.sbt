@@ -1,3 +1,5 @@
+// Keep in lockstep with sparkmobility Python package version (pyproject.toml). The emitted JAR name
+// encodes this version so Python's ensure_jar() can pull a matching artifact from GCS.
 ThisBuild / version := "0.1.0"
 
 ThisBuild / scalaVersion := "2.13.10"
@@ -20,8 +22,8 @@ lazy val root = (project in file("."))
   .settings(
     // assemblyPackageScala / assembleArtifact := false,
     // assemblyPackageDependency / assembleArtifact := false,
-    assembly / mainClass := Some("pipelines.Pipelines"),
-    name                 := "timegeo_1",
+    assembly / mainClass := Some("pipelines.Main"),
+    name                 := "sparkmobility",
 
     // START OF SCALAFIX FIX
     // These options are required for the OrganizeImports and RemoveUnused Scalafix rules in Scala 2.13.x
@@ -46,7 +48,7 @@ lazy val root = (project in file("."))
     )
   )
 
-assembly / assemblyJarName := "timegeo010.jar"
+assembly / assemblyJarName := s"sparkmobility-${version.value}.jar"
 assembly / assemblyMergeStrategy := {
   case PathList("META-INF", xs @ _*) => MergeStrategy.discard
   case x                             => MergeStrategy.first

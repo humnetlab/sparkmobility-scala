@@ -97,7 +97,7 @@ To run the project, you can use the following command:
 ```bash
 
 spark-submit \
-  --class com.timegeo.Main \
+  --class pipelines.Main \
   --master  <your_master_url> \ # e.g., local[*], yarn
   --driver-memory <MEMORY>g \
   --executor-memory <MEMORY>g \
@@ -109,7 +109,7 @@ spark-submit \
 For more information on sbt, visit the [official sbt documentation](https://www.scala-sbt.org/1.x/docs/).
 
 ## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
 
 ## Authors
 - **Albert Cao** ([@caoalbert](https://github.com/caoalbert))
