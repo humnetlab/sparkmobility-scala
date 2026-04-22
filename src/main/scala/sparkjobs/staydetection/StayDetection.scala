@@ -129,8 +129,7 @@ object StayDetection {
           )
         }
         val rowIds = ordered.map(_.getAs[Int]("row_in_group"))
-        rowIds
-          .iterator
+        rowIds.iterator
           .zip(sequentialStayDetection(groupData.iterator, threshold))
           .map { case (rowId, flag) =>
             (caid, temporalStayId, rowId, flag)

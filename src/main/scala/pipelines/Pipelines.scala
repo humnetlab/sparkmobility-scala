@@ -282,7 +282,10 @@ class Pipelines extends Logging {
       .mode(SaveMode.Overwrite)
       .parquet(outputPath)
   }
-  def getStayDurationDistribution(folderPath: String, outputPath: String): Unit = {
+  def getStayDurationDistribution(
+      folderPath: String,
+      outputPath: String
+  ): Unit = {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     val dataDF              = FileUtils.readParquetData(folderPath, spark)
@@ -291,7 +294,10 @@ class Pipelines extends Logging {
       .mode(SaveMode.Overwrite)
       .parquet(outputPath)
   }
-  def getDepartureTimeDistribution(folderPath: String, outputPath: String): Unit = {
+  def getDepartureTimeDistribution(
+      folderPath: String,
+      outputPath: String
+  ): Unit = {
     log.info("Creating spark session")
     val spark: SparkSession = createSparkSession(runMode, "TimeGeoPipe")
     val dataDF              = FileUtils.readParquetData(folderPath, spark)

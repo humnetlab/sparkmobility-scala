@@ -12,10 +12,10 @@ import sparkjobs.filtering.FilterParameters
 
 /** Stable, Python-friendly façade over [[Pipelines]].
   *
-  * Python callers go through this object via py4j. All config is passed as JSON strings
-  * (parsed in-memory) so there is no disk round-trip between the two languages, and
-  * column maps are passed as JSON objects so the Python side does not need to hand-build
-  * a Scala `Map` through `PythonUtils.toScalaMap`.
+  * Python callers go through this object via py4j. All config is passed as JSON
+  * strings (parsed in-memory) so there is no disk round-trip between the two
+  * languages, and column maps are passed as JSON objects so the Python side
+  * does not need to hand-build a Scala `Map` through `PythonUtils.toScalaMap`.
   */
 object PyEntryPoint {
 
@@ -82,6 +82,9 @@ object PyEntryPoint {
   def getStayDurationDistribution(inputPath: String, outputPath: String): Unit =
     pipe.getStayDurationDistribution(inputPath, outputPath)
 
-  def getDepartureTimeDistribution(inputPath: String, outputPath: String): Unit =
+  def getDepartureTimeDistribution(
+      inputPath: String,
+      outputPath: String
+  ): Unit =
     pipe.getDepartureTimeDistribution(inputPath, outputPath)
 }

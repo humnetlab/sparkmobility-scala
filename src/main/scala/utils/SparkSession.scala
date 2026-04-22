@@ -21,10 +21,10 @@ object SparkFactory extends Logging {
   // Enabling AQE + Kryo here (rather than only in PRODUCTION) so that local runs, tests,
   // and py4j-driven invocations all get the same query optimizer and serializer behavior.
   private val baselineConfigurations: Map[String, String] = Map(
-    "spark.serializer"                        -> classOf[KryoSerializer].getName,
-    "spark.sql.adaptive.enabled"              -> "true",
+    "spark.serializer"           -> classOf[KryoSerializer].getName,
+    "spark.sql.adaptive.enabled" -> "true",
     "spark.sql.adaptive.coalescePartitions.enabled" -> "true",
-    "spark.sql.adaptive.skewJoin.enabled"     -> "true"
+    "spark.sql.adaptive.skewJoin.enabled"           -> "true"
   )
 
   private def getSparkConf(
@@ -50,7 +50,9 @@ object SparkFactory extends Logging {
       case RunMode.PRODUCTION =>
         log.info("Setting up the production spark configs")
         new SparkConf().setAll(
-          baselineConfigurations ++ readJsonAsMap(sparkConfigsPath) ++ configOverrides
+          baselineConfigurations ++ readJsonAsMap(
+            sparkConfigsPath
+          ) ++ configOverrides
         )
     }
   }

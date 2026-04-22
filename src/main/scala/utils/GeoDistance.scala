@@ -13,8 +13,7 @@ import org.apache.spark.sql.functions.udf
 /** Single source of truth for great-circle distance calculations.
   *
   * All public functions return meters. Callers that need kilometers divide
-  * explicitly at the use site so the unit is obvious in the surrounding
-  * code.
+  * explicitly at the use site so the unit is obvious in the surrounding code.
   */
 object GeoDistance extends Serializable {
 
@@ -49,8 +48,8 @@ object GeoDistance extends Serializable {
     }
   }
 
-  /** UDF variant of [[h3DistanceMeters]] that returns null when either input
-    * is null (avoids propagating NaN into downstream aggregations).
+  /** UDF variant of [[h3DistanceMeters]] that returns null when either input is
+    * null (avoids propagating NaN into downstream aggregations).
     */
   val h3DistanceMetersUDF: UserDefinedFunction =
     udf[java.lang.Double, String, String] { (a: String, b: String) =>

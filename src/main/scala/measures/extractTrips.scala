@@ -7,9 +7,9 @@
 package measures
 
 import com.uber.h3core.H3Core
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{col, udf, _}
-import org.apache.spark.sql.DataFrame
 import utils.GeoDistance
 
 import java.io.Serializable
